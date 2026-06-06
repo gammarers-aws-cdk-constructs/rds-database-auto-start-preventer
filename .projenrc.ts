@@ -10,6 +10,13 @@ const project = new awscdk.AwsCdkConstructLibrary({
   packageManager: javascript.NodePackageManager.YARN_CLASSIC,
   projenrcTs: true,
   repositoryUrl: 'https://github.com/gammarers-aws-cdk-constructs/rds-database-auto-start-preventer.git',
+  description: 'CDK stack that stops RDS DB instances and clusters after they are auto-started by AWS (RDS-EVENT-0154 / RDS-EVENT-0153). It uses EventBridge rules and a Durable Lambda to detect auto-start events, optionally filter by tags, stop the resource if it matches, and post a notification to Slack.',
+  keywords: [
+    'cdk',
+    'aws',
+    'aws-cdk',
+    'rds',
+  ],
   devDeps: [
     '@aws/durable-execution-sdk-js@^1.1.7',
     '@aws-sdk/client-lambda@^3.1063.0',
@@ -21,7 +28,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
     'aws-sdk-client-mock@^4.1.0',
     'aws-sdk-client-mock-jest@^4.1.0',
   ],
-  releaseToNpm: false,
+  releaseToNpm: true,
   npmTrustedPublishing: false,
   npmAccess: javascript.NpmAccess.PUBLIC,
   mergify: true,

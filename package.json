@@ -1,5 +1,6 @@
 {
   "name": "rds-database-auto-start-preventer",
+  "description": "CDK stack that stops RDS DB instances and clusters after they are auto-started by AWS (RDS-EVENT-0154 / RDS-EVENT-0153). It uses EventBridge rules and a Durable Lambda to detect auto-start events, optionally filter by tags, stop the resource if it matches, and post a notification to Slack.",
   "repository": {
     "type": "git",
     "url": "https://github.com/gammarers-aws-cdk-constructs/rds-database-auto-start-preventer.git"
@@ -75,7 +76,10 @@
     "constructs": "^10.5.1"
   },
   "keywords": [
-    "cdk"
+    "aws",
+    "aws-cdk",
+    "cdk",
+    "rds"
   ],
   "engines": {
     "node": ">= 20.0.0"
