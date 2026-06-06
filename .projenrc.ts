@@ -29,7 +29,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
     'aws-sdk-client-mock-jest@^4.1.0',
   ],
   releaseToNpm: true,
-  npmTrustedPublishing: false,
+  npmTrustedPublishing: true,
   npmAccess: javascript.NpmAccess.PUBLIC,
   mergify: true,
   minNodeVersion: '20.0.0',
