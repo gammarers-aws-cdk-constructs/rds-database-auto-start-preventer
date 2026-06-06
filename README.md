@@ -1,11 +1,11 @@
 # RDS Database Auto Start Preventer (AWS CDK v2)
 
-[![GitHub](https://img.shields.io/github/license/gammarers-aws-cdk-constructs/aws-rds-database-auto-start-preventer?style=flat-square)](https://github.com/gammarers-aws-cdk-constructs/aws-rds-database-auto-start-preventer/blob/main/LICENSE)
-[![npm](https://img.shields.io/npm/v/aws-rds-database-auto-start-preventer?style=flat-square)](https://www.npmjs.com/package/aws-rds-database-auto-start-preventer)
-[![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/gammarers-aws-cdk-constructs/aws-rds-database-auto-start-preventer/release.yml?branch=main&label=release&style=flat-square)](https://github.com/gammarers-aws-cdk-constructs/aws-rds-database-auto-start-preventer/actions/workflows/release.yml)
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/gammarers-aws-cdk-constructs/aws-rds-database-auto-start-preventer?sort=semver&style=flat-square)](https://github.com/gammarers-aws-cdk-constructs/aws-rds-database-auto-start-preventer/releases)
+[![GitHub](https://img.shields.io/github/license/gammarers-aws-cdk-constructs/rds-database-auto-start-preventer?style=flat-square)](https://github.com/gammarers-aws-cdk-constructs/rds-database-auto-start-preventer/blob/main/LICENSE)
+[![npm](https://img.shields.io/npm/v/rds-database-auto-start-preventer?style=flat-square)](https://www.npmjs.com/package/rds-database-auto-start-preventer)
+[![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/gammarers-aws-cdk-constructs/rds-database-auto-start-preventer/release.yml?branch=main&label=release&style=flat-square)](https://github.com/gammarers-aws-cdk-constructs/rds-database-auto-start-preventer/actions/workflows/release.yml)
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/gammarers-aws-cdk-constructs/rds-database-auto-start-preventer?sort=semver&style=flat-square)](https://github.com/gammarers-aws-cdk-constructs/rds-database-auto-start-preventer/releases)
 
-[![View on Construct Hub](https://constructs.dev/badge?package=aws-rds-database-auto-start-preventer)](https://constructs.dev/packages/aws-rds-database-auto-start-preventer)
+[![View on Construct Hub](https://constructs.dev/badge?package=rds-database-auto-start-preventer)](https://constructs.dev/packages/rds-database-auto-start-preventer)
 
 CDK stack that stops RDS DB instances and clusters after they are auto-started by AWS (RDS-EVENT-0154 / RDS-EVENT-0153). It uses EventBridge rules and a Durable Lambda to detect auto-start events, optionally filter by tags, stop the resource if it matches, and post a notification to Slack.
 
@@ -22,13 +22,13 @@ CDK stack that stops RDS DB instances and clusters after they are auto-started b
 **npm**
 
 ```bash
-npm install aws-rds-database-auto-start-preventer
+npm install rds-database-auto-start-preventer
 ```
 
 **yarn**
 
 ```bash
-yarn add aws-rds-database-auto-start-preventer
+yarn add rds-database-auto-start-preventer
 ```
 
 ## Usage
@@ -37,7 +37,7 @@ Use the `RDSDatabaseAutoStartPreventer` construct when you want to add auto-star
 
 ```typescript
 import { Stack } from 'aws-cdk-lib';
-import { RDSDatabaseAutoStartPreventer } from 'aws-rds-database-auto-start-preventer';
+import { RDSDatabaseAutoStartPreventer } from 'rds-database-auto-start-preventer';
 
 const stack = new Stack(app, 'MyStack');
 
@@ -56,7 +56,7 @@ new RDSDatabaseAutoStartPreventer(stack, 'RDSDatabaseAutoStartPreventer', {
 Use the `RDSDatabaseAutoStartPreventStack` when you want a dedicated stack that only deploys the RDS auto-start prevent resources.
 
 ```typescript
-import { RDSDatabaseAutoStartPreventStack } from 'aws-rds-database-auto-start-preventer';
+import { RDSDatabaseAutoStartPreventStack } from 'rds-database-auto-start-preventer';
 
 new RDSDatabaseAutoStartPreventStack(app, 'RDSDatabaseAutoStartPreventStack', {
   stackName: 'rds-database-auto-start-prevent',
@@ -75,8 +75,8 @@ new RDSDatabaseAutoStartPreventStack(app, 'RDSDatabaseAutoStartPreventStack', {
 
 Store a JSON object in AWS Secrets Manager with the Slack Bot Token and channel ID:
 
-| Key     | Value            |
-|---------|------------------|
+| Key | Value |
+|-----|-------|
 | `token` | Slack Bot Token (e.g. `xoxb-...`) |
 | `channel` | Slack channel ID (e.g. `C01234ABCD`) |
 
@@ -105,7 +105,7 @@ Example secret value:
 - **Node.js** >= 20.0.0 (for CDK app)
 - **AWS CDK** ^2.232.0
 - **constructs** ^10.5.1
-- **AWS Lambda** runtime Node.js 22+ (used by the Durable Lambda; managed by the construct)
+- **AWS Lambda** runtime Node.js 24 (used by the Durable Lambda; managed by the construct)
 
 ## License
 
