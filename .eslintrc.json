@@ -153,6 +153,7 @@
         "devDependencies": [
           "**/test/**",
           "**/build-tools/**",
+          "src/funcs/auto-start-prevent.lambda.ts",
           ".projenrc.ts",
           "projenrc/**/*.ts"
         ],

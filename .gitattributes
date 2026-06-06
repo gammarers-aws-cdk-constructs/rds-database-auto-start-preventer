@@ -20,5 +20,6 @@
 /API.md linguist-generated
 /LICENSE linguist-generated
 /package.json linguist-generated
+/src/funcs/auto-start-prevent-function.ts linguist-generated
 /tsconfig.dev.json linguist-generated linguist-language=JSON-with-Comments
 /yarn.lock linguist-generated
