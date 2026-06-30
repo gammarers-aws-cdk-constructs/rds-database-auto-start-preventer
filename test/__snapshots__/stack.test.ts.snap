@@ -90,7 +90,7 @@ exports[`Stack Default should match snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "294fef9f6747459985c1ee18d5ecd26a8e39aa4a66f7e96d0b4bbee2309ddfa9.zip",
+          "S3Key": "32fdaae09ff2c5f645570048cb9be05a79b0e3a66461591bfe36d978a2ccebe4.zip",
         },
         "Description": "A function to prevent the RDS Database or Cluster from starting automatically.",
         "DurableConfig": {
@@ -151,7 +151,7 @@ exports[`Stack Default should match snapshot 1`] = `
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB056dc83233dafc97158ac0971505fde7e5",
+            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05a4bba072125a62583d18cdb2f36850f8",
             "Version",
           ],
         },
@@ -159,7 +159,7 @@ exports[`Stack Default should match snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB056dc83233dafc97158ac0971505fde7e5": {
+    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05a4bba072125a62583d18cdb2f36850f8": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -236,12 +236,6 @@ exports[`Stack Default should match snapshot 1`] = `
       "Properties": {
         "PolicyDocument": {
           "Statement": [
-            {
-              "Action": "tag:GetResources",
-              "Effect": "Allow",
-              "Resource": "*",
-              "Sid": "GetResources",
-            },
             {
               "Action": [
                 "rds:DescribeDBInstances",
@@ -519,7 +513,7 @@ exports[`Stack Disable should match snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "294fef9f6747459985c1ee18d5ecd26a8e39aa4a66f7e96d0b4bbee2309ddfa9.zip",
+          "S3Key": "32fdaae09ff2c5f645570048cb9be05a79b0e3a66461591bfe36d978a2ccebe4.zip",
         },
         "Description": "A function to prevent the RDS Database or Cluster from starting automatically.",
         "DurableConfig": {
@@ -580,7 +574,7 @@ exports[`Stack Disable should match snapshot 1`] = `
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB056dc83233dafc97158ac0971505fde7e5",
+            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05a4bba072125a62583d18cdb2f36850f8",
             "Version",
           ],
         },
@@ -588,7 +582,7 @@ exports[`Stack Disable should match snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB056dc83233dafc97158ac0971505fde7e5": {
+    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05a4bba072125a62583d18cdb2f36850f8": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -665,12 +659,6 @@ exports[`Stack Disable should match snapshot 1`] = `
       "Properties": {
         "PolicyDocument": {
           "Statement": [
-            {
-              "Action": "tag:GetResources",
-              "Effect": "Allow",
-              "Resource": "*",
-              "Sid": "GetResources",
-            },
             {
               "Action": [
                 "rds:DescribeDBInstances",
