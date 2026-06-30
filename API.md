@@ -4,7 +4,11 @@
 
 ### RDSDatabaseAutoStartPreventer <a name="RDSDatabaseAutoStartPreventer" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer"></a>
 
-Construct that deploys EventBridge rules and a Durable Lambda to prevent RDS DB instances and clusters from staying running after an auto-start event (RDS-EVENT-0154 / RDS-EVENT-0153).
+Deploys EventBridge rules and a Durable Lambda to stop matching RDS resources after auto-start events (RDS-EVENT-0154 / RDS-EVENT-0153).
+
+EventBridge rules match all auto-start events; tag filtering runs in the handler
+using `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters`.
+IAM grants RDS describe and stop actions only (no Resource Groups Tagging API).
 
 #### Initializers <a name="Initializers" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer.Initializer"></a>
 
@@ -147,7 +151,7 @@ The tree node.
 
 ### RDSDatabaseAutoStartPreventStack <a name="RDSDatabaseAutoStartPreventStack" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStack"></a>
 
-CDK Stack that deploys the RDS database auto start prevent (EventBridge Rule + Durable Lambda).
+CDK stack that deploys {@link RDSDatabaseAutoStartPreventer}.
 
 #### Initializers <a name="Initializers" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStack.Initializer"></a>
 
@@ -1514,7 +1518,10 @@ Name of the Secrets Manager secret containing Slack token and channel.
 
 ### TargetResource <a name="TargetResource" id="rds-database-auto-start-preventer.TargetResource"></a>
 
-Tag-based criteria to select which RDS instances or clusters are subject to auto-start prevention.
+Tag-based criteria evaluated in the Lambda handler (not on the EventBridge rule).
+
+Resources whose tag value for {@link TargetResource.tagKey} is not in
+{@link TargetResource.tagValues} are skipped without calling StopDB*.
 
 #### Initializer <a name="Initializer" id="rds-database-auto-start-preventer.TargetResource.Initializer"></a>
 
