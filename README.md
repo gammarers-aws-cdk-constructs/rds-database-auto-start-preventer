@@ -7,14 +7,15 @@
 
 [![View on Construct Hub](https://constructs.dev/badge?package=rds-database-auto-start-preventer)](https://constructs.dev/packages/rds-database-auto-start-preventer)
 
-CDK stack that stops RDS DB instances and clusters after they are auto-started by AWS (RDS-EVENT-0154 / RDS-EVENT-0153). It uses EventBridge rules and a Durable Lambda to detect auto-start events, optionally filter by tags, stop the resource if it matches, and post a notification to Slack.
+CDK construct library that stops RDS DB instances and clusters after they are auto-started by AWS (RDS-EVENT-0154 / RDS-EVENT-0153). It uses EventBridge rules and a Durable Lambda to detect auto-start events, filter resources by tags in the handler, stop matching resources when they are `available`, and post a Slack notification only when this Lambda invoked the stop API successfully.
 
 ## Features
 
 - **EventBridge integration** – Listens for RDS DB Instance (RDS-EVENT-0154) and DB Cluster (RDS-EVENT-0153) auto-start events
-- **Tag-based targeting** – Only stops instances/clusters that match a given tag key and tag values
-- **Durable Lambda** – Uses AWS Lambda Durable Execution for reliable, long-running workflow (polling RDS until stopped)
-- **Slack notifications** – Sends a message to a Slack channel when an auto-started resource is stopped (via token and channel from AWS Secrets Manager)
+- **Handler-side tag filtering** – EventBridge rules match all auto-start events; the Lambda evaluates `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters` and skips resources that do not match `tagKey` / `tagValues`
+- **Durable Lambda** – Uses AWS Lambda Durable Execution for reliable, long-running workflow (initial wait, status polling, stop, and post-stop polling)
+- **Least-privilege IAM** – Grants RDS describe and stop actions only (no Resource Groups Tagging API)
+- **Slack notifications** – Sends a message when this invocation called `StopDBInstance` / `StopDBCluster` and the resource reached `stopped` (no notification when the resource was already stopped or tags did not match)
 - **Optional rule toggle** – EventBridge rules can be enabled or disabled via `enableRule`
 
 ## Installation
@@ -33,7 +34,20 @@ yarn add rds-database-auto-start-preventer
 
 ## Usage
 
-Use the `RDSDatabaseAutoStartPreventer` construct when you want to add auto-start prevention to an existing stack or compose it with other constructs.
+### How it works
+
+1. EventBridge invokes the Durable Lambda with the RDS auto-start event and tag filter parameters (`tagKey`, `tagValues`).
+2. The handler waits 1 minute, then polls DescribeDB* until the resource leaves transitional statuses.
+3. If the resource tag does not match, the handler exits with no stop action.
+4. If the resource is `available` and tags match, the handler calls StopDB* and polls until `stopped`.
+5. If the resource is already `stopped` (for example, stopped by another process), the handler exits without calling StopDB* and without posting to Slack.
+6. Slack is notified only when StopDB* was invoked by this invocation and the resource reached `stopped`.
+
+Tag the RDS instances or clusters you want to protect (for example, `AutoStartPrevent=YES`). Resources without a matching tag are left running.
+
+### Construct
+
+Use `RDSDatabaseAutoStartPreventer` when you want to add auto-start prevention to an existing stack or compose it with other constructs.
 
 ```typescript
 import { Stack } from 'aws-cdk-lib';
@@ -53,7 +67,9 @@ new RDSDatabaseAutoStartPreventer(stack, 'RDSDatabaseAutoStartPreventer', {
 });
 ```
 
-Use the `RDSDatabaseAutoStartPreventStack` when you want a dedicated stack that only deploys the RDS auto-start prevent resources.
+### Stack
+
+Use `RDSDatabaseAutoStartPreventStack` when you want a dedicated stack that only deploys the RDS auto-start prevent resources.
 
 ```typescript
 import { RDSDatabaseAutoStartPreventStack } from 'rds-database-auto-start-preventer';
@@ -93,19 +109,19 @@ Example secret value:
 
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
-| `targetResource` | `TargetResource` | Yes | Tag-based criteria for which RDS instances/clusters to protect. |
+| `targetResource` | `TargetResource` | Yes | Tag-based criteria evaluated in the Lambda handler. |
 | `targetResource.tagKey` | `string` | Yes | Tag key to match (e.g. `AutoStartPrevent`, `Environment`). |
-| `targetResource.tagValues` | `string[]` | Yes | Tag values that indicate the resource should be protected (e.g. `['YES']`, `['production']`). |
+| `targetResource.tagValues` | `string[]` | Yes | Tag values that indicate the resource should be stopped (e.g. `['YES']`, `['production']`). |
 | `enableRule` | `boolean` | No | Whether the EventBridge rules are enabled. Defaults to `true` if omitted. |
 | `secrets` | `Secrets` | Yes | External secrets for notifications. |
 | `secrets.slackSecretName` | `string` | Yes | Name of the Secrets Manager secret containing Slack `token` and `channel`. |
 
 ## Requirements
 
-- **Node.js** >= 20.0.0 (for CDK app)
+- **Node.js** >= 20.0.0 (for your CDK app)
 - **AWS CDK** ^2.232.0
 - **constructs** ^10.5.1
-- **AWS Lambda** runtime Node.js 24 (used by the Durable Lambda; managed by the construct)
+- **AWS Lambda** runtime Node.js 24.x with Durable Execution (deployed by the construct)
 
 ## License
 
