@@ -16,7 +16,7 @@ export interface RDSDatabaseAutoStartPreventStackProps extends StackProps {
 }
 
 /**
- * CDK Stack that deploys the RDS database auto start prevent (EventBridge Rule + Durable Lambda).
+ * CDK stack that deploys {@link RDSDatabaseAutoStartPreventer}.
  */
 export class RDSDatabaseAutoStartPreventStack extends Stack {
   /**

@@ -9,7 +9,9 @@ import { Construct } from 'constructs';
 import { AutoStartPreventFunction } from '../funcs/auto-start-prevent-function';
 
 /**
- * Tag-based criteria to select which RDS instances or clusters are subject to auto-start prevention.
+ * Tag-based criteria evaluated in the Lambda handler (not on the EventBridge rule).
+ * Resources whose tag value for {@link TargetResource.tagKey} is not in
+ * {@link TargetResource.tagValues} are skipped without calling StopDB*.
  */
 export interface TargetResource {
   /** Tag key to match (e.g. "Environment", "AutoStartPrevent"). */
@@ -39,13 +41,20 @@ export interface RDSDatabaseAutoStartPreventerProps {
 }
 
 /**
- * Construct that deploys EventBridge rules and a Durable Lambda to prevent RDS DB instances
- * and clusters from staying running after an auto-start event (RDS-EVENT-0154 / RDS-EVENT-0153).
+ * Deploys EventBridge rules and a Durable Lambda to stop matching RDS resources
+ * after auto-start events (RDS-EVENT-0154 / RDS-EVENT-0153).
+ *
+ * EventBridge rules match all auto-start events; tag filtering runs in the handler
+ * using `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters`.
+ * IAM grants RDS describe and stop actions only (no Resource Groups Tagging API).
  */
 export class RDSDatabaseAutoStartPreventer extends Construct {
 
   /**
-   * Creates the construct: Lambda (with Params and Secrets), EventBridge rules, and IAM.
+   * Creates the Durable Lambda, EventBridge rules, and IAM policies.
+   *
+   * The Lambda receives `{ event, params }` where `params` carries `tagKey` and `tagValues`
+   * from {@link RDSDatabaseAutoStartPreventerProps.targetResource}.
    *
    * @param scope - Parent construct.
    * @param id - Construct id.
@@ -91,15 +100,7 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       systemLogLevelV2: lambda.SystemLogLevel.INFO,
       applicationLogLevelV2: lambda.ApplicationLogLevel.INFO,
     });
-    autoStartPreventFunction.addToRolePolicy(new iam.PolicyStatement({
-      sid: 'GetResources',
-      effect: iam.Effect.ALLOW,
-      actions: [
-        'tag:GetResources',
-      ],
-      resources: ['*'],
-    }));
-    // Grant read access to the RDS API
+    // Grant RDS describe (status and TagList) and stop permissions to the handler role.
     autoStartPreventFunction.addToRolePolicy(new iam.PolicyStatement({
       sid: 'RdsAutoStartControl',
       effect: iam.Effect.ALLOW,
@@ -121,7 +122,7 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       return props.enableRule === undefined || props.enableRule;
     })();
 
-    // Convert the rule input to pass { event, params } to the Lambda (tag conditions are injected by the Rule).
+    // Pass the EventBridge event and tag filter params to the Lambda target input.
     const lambdaInput = events.RuleTargetInput.fromObject({
       event: events.EventField.fromPath('$'),
       params: {
