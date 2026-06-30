@@ -10,12 +10,16 @@ import { WebClient } from '@slack/web-api';
 import { secretFetcher } from 'aws-lambda-secret-fetcher';
 
 /**
- * Detail payload of an RDS auto-start event from EventBridge (subset used by this handler).
+ * Detail payload of an RDS auto-start event from EventBridge.
  */
 interface RdsAutoStartDetail {
+  /** Event ID: RDS-EVENT-0154 (DB instance) or RDS-EVENT-0153 (DB cluster). */
   EventID: 'RDS-EVENT-0154' | 'RDS-EVENT-0153';
+  /** Resource type that emitted the event. */
   SourceType: 'DB_INSTANCE' | 'CLUSTER';
+  /** ARN of the DB instance or cluster. */
   SourceArn: string;
+  /** DB instance or cluster identifier from the event. */
   SourceIdentifier: string;
 }
 
@@ -29,39 +33,70 @@ interface RdsAutoStartEvent {
 }
 
 /**
- * Parameters equivalent to those previously passed from Step Functions (tag-based filtering).
+ * Tag-based filter parameters for the handler.
  */
 interface AutoStartParams {
+  /** Tag key to match on the resource. */
   tagKey: string;
+  /** Allowed tag values; the resource is processed only when its tag value is in this list. */
   tagValues: string[];
 }
 
 /**
- * Slack secret shape stored in Secrets Manager (token and channel).
+ * Slack credentials stored in Secrets Manager.
  */
 interface SlackSecret {
+  /** Slack bot or user OAuth token. */
   token: string;
+  /** Channel ID or name to post notifications to. */
   channel: string;
 }
 
 /**
- * Input to the Lambda Durable Function. Either:
- * - EventBridge passes the raw RDS event; params are taken from env (TAG_KEY, TAG_VALUES).
- * - Or caller can pass { event, params } directly.
+ * Normalized handler input: EventBridge event and tag filter parameters.
+ *
+ * CDK invokes the function with `{ event, params }` via EventBridge target input.
+ * A raw EventBridge event alone is also accepted; `params` are then read from
+ * `TAG_KEY` and `TAG_VALUES` environment variables.
  */
 interface AutoStartPreventInput {
   event: RdsAutoStartEvent;
   params: AutoStartParams;
 }
 
-/** Detect if the payload is the raw EventBridge event (has detail + detail-type). */
+/**
+ * Handler result when no stop action was taken.
+ */
+interface NoOpResult {
+  action: 'no-op';
+  reason: 'tag not matched or not found' | 'already stopped';
+  status: string;
+}
+
+/**
+ * Handler result when this invocation called StopDB* and the resource reached `stopped`.
+ */
+interface StoppedResult {
+  action: 'stopped';
+  finalStatus: string;
+  account: string;
+  region: string;
+  identifier: string;
+}
+
+/** Type guard: input is a raw EventBridge RDS auto-start event. */
 const isRawEvent = (input: unknown): input is RdsAutoStartEvent =>
   typeof input === 'object' &&
   input != null &&
   'detail' in input &&
   'detail-type' in input;
 
-/** Build params from environment (set by CDK from targetResource). */
+/**
+ * Builds tag filter parameters from `TAG_KEY` and `TAG_VALUES` environment variables.
+ *
+ * @returns Parsed tag key and values.
+ * @throws When required environment variables are missing or `TAG_VALUES` is not a JSON string array.
+ */
 const paramsFromEnv = (): AutoStartParams => {
   const tagKey = process.env.TAG_KEY;
   const tagValuesJson = process.env.TAG_VALUES;
@@ -80,7 +115,13 @@ const paramsFromEnv = (): AutoStartParams => {
   return { tagKey, tagValues };
 };
 
-/** Normalize invocation input to AutoStartPreventInput (event + params). */
+/**
+ * Normalizes invocation input to {@link AutoStartPreventInput}.
+ *
+ * @param input - `{ event, params }` or a raw EventBridge RDS event.
+ * @returns Event plus tag filter parameters.
+ * @throws When the payload shape is invalid.
+ */
 const normalizeInput = (input: unknown): AutoStartPreventInput => {
   if (isRawEvent(input)) {
     return { event: input, params: paramsFromEnv() };
@@ -106,17 +147,24 @@ interface Tag {
 }
 
 /**
- * State used when polling RDS describe results (status, identifier, optional tags).
+ * State snapshot while polling RDS describe APIs.
  */
 interface PollState {
+  /** Current DB instance or cluster status. */
   status: string;
+  /** DB instance or cluster identifier. */
   identifier: string;
+  /** Tags from the describe response; present on the first poll only. */
   tags?: Tag[];
 }
 
+/** Shared RDS client for describe and stop API calls. */
 const rdsClient = new RDSClient({});
 
-/** RDS statuses that indicate a transition in progress; we poll every 5 minutes while in these states. */
+/**
+ * RDS statuses that indicate an in-progress transition.
+ * The handler polls every 5 minutes while the resource remains in one of these states.
+ */
 const TRANSITIONAL_STATUSES = new Set([
   'starting',
   'configuring-enhanced-monitoring',
@@ -144,15 +192,24 @@ const matchTag = (params: AutoStartParams, tags?: Tag[]): boolean => {
 };
 
 /**
- * Durable Lambda handler: on RDS auto-start events, waits for the resource to become available
- * (or already stopped), checks tag match, stops the instance/cluster if needed, then posts to Slack.
+ * Durable Lambda handler for RDS auto-start prevention.
  *
- * @param input - EventBridge event plus params (tagKey, tagValues).
+ * Workflow:
+ * 1. Wait 1 minute, then poll DescribeDB* until the resource leaves transitional statuses.
+ * 2. Read tags from the describe response `TagList`; skip when {@link matchTag} returns false.
+ * 3. If status is `available`, call StopDB* and poll until `stopped`.
+ * 4. If already `stopped` without calling StopDB*, return {@link NoOpResult} (no Slack notification).
+ * 5. Post to Slack only when StopDB* was invoked and the resource reached `stopped`.
+ *
+ * Tag matching uses RDS Describe APIs only; Resource Groups Tagging API is not used.
+ *
+ * @param input - `{ event, params }` from EventBridge, or a raw RDS event.
  * @param context - Durable execution context for steps and waits.
- * @returns Result with action ('stopped' | 'no-op'), finalStatus, account, region, identifier.
+ * @returns {@link StoppedResult} or {@link NoOpResult}.
+ * @throws When the event is unsupported, secrets are invalid, or stop did not reach `stopped`.
  */
 export const handler = withDurableExecution(
-  async (input: unknown, context: DurableContext) => {
+  async (input: unknown, context: DurableContext): Promise<StoppedResult | NoOpResult> => {
     const { event, params } = normalizeInput(input);
     const { detail, 'detail-type': detailType } = event;
 
@@ -184,10 +241,10 @@ export const handler = withDurableExecution(
       );
     }
 
-    // Step Functions の StartingWait (1 分待つ) に相当
+    // Initial delay before the first describe (allows RDS to report a stable status).
     await context.wait({ minutes: 1 });
 
-    // Step Functions の DescribeTypeChoice + TagMatchChoice + StatusChoice の前半に相当
+    // Poll until the resource is no longer in a transitional status; capture status and TagList.
     const firstDescribe = await context.waitForCondition<PollState>(
       async (_state, _ctx) => {
         if (isInstance) {
@@ -222,17 +279,17 @@ export const handler = withDurableExecution(
           identifier: detail.SourceIdentifier,
         },
         waitStrategy: state => {
-          // ステータスが遷移中であれば 5 分おきにポーリング
+          // Re-poll every 5 minutes while the status is still transitional.
           if (TRANSITIONAL_STATUSES.has(state.status)) {
             return { shouldContinue: true, delay: { minutes: 5 } };
           }
-          // available / stopped / その他 → ここで一旦ループ終了し、後続ロジックへ
+          // available, stopped, or other terminal status — proceed to tag check and stop logic.
           return { shouldContinue: false };
         },
       },
     );
 
-    // タグが存在しない or マッチしない場合は何もせず終了
+    // Skip when TagList is missing or does not match tagKey / tagValues.
     if (!matchTag(params, firstDescribe.tags)) {
       return {
         action: 'no-op',
@@ -241,9 +298,10 @@ export const handler = withDurableExecution(
       };
     }
 
+    let didStop = false;
     let finalStatus = firstDescribe.status;
 
-    // available の場合は stop API を呼び、その後 stopped になるまで待機
+    // When available, invoke StopDB* and poll until stopped.
     if (firstDescribe.status === 'available') {
       if (isInstance) {
         await context.step('stop-db-instance', async () => {
@@ -306,26 +364,34 @@ export const handler = withDurableExecution(
         },
       );
 
+      didStop = true;
       finalStatus = stopped.status;
     }
 
-    // stopped になっていなければ通知は出さない（Step Functions の Fail 相当）
+    // Already stopped without calling StopDB* (e.g. stopped by another process) — no Slack notification.
+    if (!didStop) {
+      if (finalStatus === 'stopped') {
+        return {
+          action: 'no-op',
+          reason: 'already stopped',
+          status: finalStatus,
+        };
+      }
+      throw new Error(`DB status is not stopped after processing: ${finalStatus}`);
+    }
+
+    // Fail when StopDB* was called but the resource did not reach stopped.
     if (finalStatus !== 'stopped') {
       throw new Error(`DB status is not stopped after processing: ${finalStatus}`);
     }
 
-    // 通知用の account/region 取得（Slack 投稿用）
     const sourceArnParts = detail.SourceArn.split(':');
     const region = sourceArnParts[3];
     const account = sourceArnParts[4];
 
-    // const sourceTypeHuman = humanReadableSourceType(detail.SourceType);
-
     const client = new WebClient(slackSecretValue.token);
     const channel = slackSecretValue.channel;
 
-    // send slack message
-    // const slackParentMessageResult =
     await context.step('post-slack-messages', async () => {
       return client.chat.postMessage({
         channel,
