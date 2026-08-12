@@ -128,6 +128,11 @@
       "type": "build"
     },
     {
+      "name": "strict-env-resolver",
+      "version": "^0.6.1",
+      "type": "build"
+    },
+    {
       "name": "ts-jest",
       "type": "build"
     },

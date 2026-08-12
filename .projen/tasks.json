@@ -391,6 +391,7 @@
             "jsii-rosetta",
             "jsii",
             "projen",
+            "strict-env-resolver",
             "ts-jest",
             "ts-node",
             "typescript",

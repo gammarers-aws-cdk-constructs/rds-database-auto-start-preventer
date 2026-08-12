@@ -5886,6 +5886,11 @@ strict-env-resolver@^0.5.1:
   resolved "https://registry.yarnpkg.com/strict-env-resolver/-/strict-env-resolver-0.5.5.tgz#3d6297b27e978362d7ff01073341d2178ff8f2eb"
   integrity sha512-Tzf24YkvPppR5zeLvMhfjFix/WyEbW9FCN4orFuwvsCcJm8zJwUvoqXuhlH6OxsJDiXkbVR8wV+ELXHteBuEIw==
 
+strict-env-resolver@^0.6.1:
+  version "0.6.1"
+  resolved "https://registry.yarnpkg.com/strict-env-resolver/-/strict-env-resolver-0.6.1.tgz#198e6461be7527dca17bdb047b9675e1744fcb76"
+  integrity sha512-RvUGZM8mn31bpNP6X6g9O4cogUeQdSsQ1CzGCx+nOwws6EVIVilF6RdY1irwrMoXkhu0rxQIGbtUSwwkL446og==
+
 string-length@^4.0.2:
   version "4.0.2"
   resolved "https://registry.yarnpkg.com/string-length/-/string-length-4.0.2.tgz#a8a8dc7bd5c1a82b9b3c8b87e125f66871b6e57a"

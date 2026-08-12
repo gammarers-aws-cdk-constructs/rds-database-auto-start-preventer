@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-rds';
 import { WebClient } from '@slack/web-api';
 import { secretFetcher } from 'aws-lambda-secret-fetcher';
+import { StrictEnvResolver, StrictEnvType } from 'strict-env-resolver';
 
 /**
  * Detail payload of an RDS auto-start event from EventBridge.
@@ -198,17 +199,16 @@ const matchTag = (params: AutoStartParams, tags?: Tag[]): boolean => {
  * @param input - `{ event, params }` from EventBridge InputTransformer (same shape required for direct Invoke).
  * @param context - Durable execution context for steps and waits.
  * @returns {@link StoppedResult} or {@link NoOpResult}.
- * @throws When the payload is invalid, the event is unsupported, secrets are invalid, or stop did not reach `stopped`.
+ * @throws When the payload is invalid, required env vars are missing, the event is unsupported, secrets are invalid, or stop did not reach `stopped`.
  */
 export const handler = withDurableExecution(
   async (input: unknown, context: DurableContext): Promise<StoppedResult | NoOpResult> => {
     const { event, params } = normalizeInput(input);
     const { detail, 'detail-type': detailType } = event;
 
-    const slackSecretName = process.env.SLACK_SECRET_NAME;
-    if (!slackSecretName) {
-      throw new Error('missing environment variable SLACK_SECRET_NAME.');
-    }
+    const slackSecretName = StrictEnvResolver.resolve('SLACK_SECRET_NAME', StrictEnvType.String, {
+      trim: true,
+    });
     // Requires AWS Parameters and Secrets Extension (ParamsAndSecrets layer) and
     // AWS_SESSION_TOKEN from the Lambda runtime (aws-lambda-secret-fetcher ^0.6+).
     const slackSecretValue = await context.step('fetch-slack-secret', async () => {
