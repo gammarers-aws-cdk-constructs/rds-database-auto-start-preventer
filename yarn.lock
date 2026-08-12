@@ -2007,12 +2007,14 @@ aws-cdk-lib@2.232.0:
     table "^6.9.0"
     yaml "1.10.2"
 
-aws-lambda-secret-fetcher@^0.5.1:
-  version "0.5.5"
-  resolved "https://registry.yarnpkg.com/aws-lambda-secret-fetcher/-/aws-lambda-secret-fetcher-0.5.5.tgz#db28f4910748cdf920fe3dc6e39beb532974da00"
-  integrity sha512-StReN3VhDtrhyOKvIX2yrujzg5c53aU3SQoWaHRT5YavMa7wcLA9LLxfiaeQeMqw5nkpu7jD/+mtj9Dz8FWGMg==
+aws-lambda-secret-fetcher@^0.7.1:
+  version "0.7.1"
+  resolved "https://registry.yarnpkg.com/aws-lambda-secret-fetcher/-/aws-lambda-secret-fetcher-0.7.1.tgz#03b1992032493fa113c270566d3023190f6b5cd7"
+  integrity sha512-UKgJsg5M+3PPooKM8X6Jdg0/g/Z9AA437FExB9HPJWFQecApeGkAfC5fFhCYJV62eekPIni1hwvnlWFclX0kiw==
   dependencies:
-    fetch-retrier "^0.3.1"
+    fetch-retrier "^0.5.0"
+    quiet-json-parser "^0.1.1"
+    strict-env-resolver "^0.5.1"
 
 aws-sdk-client-mock-jest@^4.1.0:
   version "4.1.0"
@@ -3253,10 +3255,10 @@ fdir@^6.5.0:
   resolved "https://registry.yarnpkg.com/fdir/-/fdir-6.5.0.tgz#ed2ab967a331ade62f18d077dae192684d50d350"
   integrity sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==
 
-fetch-retrier@^0.3.1:
-  version "0.3.6"
-  resolved "https://registry.yarnpkg.com/fetch-retrier/-/fetch-retrier-0.3.6.tgz#6df9bc11612c67bf29e0f7a8ab1584b7fe077a9c"
-  integrity sha512-pPR697+4Bc9IgocDr0l79BPCuIJSopJw7G2dH6gMlfiUBM37aeAQn41D3tInYMn5b/6aMIRAIQ6AoEnlZA/BaA==
+fetch-retrier@^0.5.0:
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/fetch-retrier/-/fetch-retrier-0.5.1.tgz#b2efdfec8e8c2b312a03d07eb411996749cbac92"
+  integrity sha512-2tt8Zwkk4nO40vbZYc9pk2osFCW/RamjhMDYg/W6aH1Y2lmd31xRDa3bToLT7FZNUCEQjKplYIvMJwBHyYFTKw==
 
 figures@^3.2.0:
   version "3.2.0"
@@ -5399,6 +5401,11 @@ quick-lru@^4.0.1:
   resolved "https://registry.yarnpkg.com/quick-lru/-/quick-lru-4.0.1.tgz#5b8878f113a58217848c6482026c73e1ba57727f"
   integrity sha512-ARhCpm70fzdcvNQfPoy49IaanKkTlRWF2JMzqhcJbhSFRZv7nPTvZJdcY7301IPmvW+/p0RgIWnQDLJxifsQ7g==
 
+quiet-json-parser@^0.1.1:
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/quiet-json-parser/-/quiet-json-parser-0.1.2.tgz#9a072c57f24acb4f45802f6634452245c668dc66"
+  integrity sha512-DvVMazYI8M87/qXfDmXlMsWDXlmGJagAU2zF02RvWRIg5fomB+PbUOkGOKR7NXgO7vv8SqEFMB0SsURLxYfX1Q==
+
 "react-is-18@npm:react-is@^18.3.1":
   version "18.3.1"
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-18.3.1.tgz#e83557dc12eae63a99e003a46388b1dcbb44db7e"
@@ -5873,6 +5880,11 @@ streamroller@^3.1.5:
     date-format "^4.0.14"
     debug "^4.3.4"
     fs-extra "^8.1.0"
+
+strict-env-resolver@^0.5.1:
+  version "0.5.5"
+  resolved "https://registry.yarnpkg.com/strict-env-resolver/-/strict-env-resolver-0.5.5.tgz#3d6297b27e978362d7ff01073341d2178ff8f2eb"
+  integrity sha512-Tzf24YkvPppR5zeLvMhfjFix/WyEbW9FCN4orFuwvsCcJm8zJwUvoqXuhlH6OxsJDiXkbVR8wV+ELXHteBuEIw==
 
 string-length@^4.0.2:
   version "4.0.2"

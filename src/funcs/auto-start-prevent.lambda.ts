@@ -53,6 +53,25 @@ interface SlackSecret {
 }
 
 /**
+ * Type guard for Slack credentials returned by `secretFetcher.getSecretValue`.
+ *
+ * aws-lambda-secret-fetcher ^0.7 parses SecretString with quiet-json-parser and
+ * falls back to the raw string on invalid JSON, so callers must validate shape.
+ */
+const isSlackSecret = (value: unknown): value is SlackSecret => {
+  if (typeof value !== 'object' || value == null) {
+    return false;
+  }
+  if (!('token' in value) || !('channel' in value)) {
+    return false;
+  }
+  return typeof value.token === 'string' &&
+    value.token.length > 0 &&
+    typeof value.channel === 'string' &&
+    value.channel.length > 0;
+};
+
+/**
  * Normalized handler input: EventBridge event and tag filter parameters.
  *
  * CDK always invokes the function with `{ event, params }` via EventBridge
@@ -190,12 +209,14 @@ export const handler = withDurableExecution(
     if (!slackSecretName) {
       throw new Error('missing environment variable SLACK_SECRET_NAME.');
     }
+    // Requires AWS Parameters and Secrets Extension (ParamsAndSecrets layer) and
+    // AWS_SESSION_TOKEN from the Lambda runtime (aws-lambda-secret-fetcher ^0.6+).
     const slackSecretValue = await context.step('fetch-slack-secret', async () => {
       return secretFetcher.getSecretValue<SlackSecret>(slackSecretName);
     });
 
-    if (!slackSecretValue?.token || !slackSecretValue?.channel) {
-      throw new Error('Slack secret must contain token and channel.');
+    if (!isSlackSecret(slackSecretValue)) {
+      throw new Error('Slack secret must be JSON with non-empty token and channel.');
     }
 
     const isInstance =

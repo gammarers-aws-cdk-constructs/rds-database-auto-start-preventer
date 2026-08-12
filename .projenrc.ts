@@ -24,7 +24,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
     '@aws-sdk/client-resource-groups-tagging-api@^3.1063.0',
     '@slack/web-api@^6.13.0',
     '@types/aws-lambda@^8.10.162',
-    'aws-lambda-secret-fetcher@^0.5.1',
+    'aws-lambda-secret-fetcher@^0.7.1',
     'aws-sdk-client-mock@^4.1.0',
     'aws-sdk-client-mock-jest@^4.1.0',
   ],

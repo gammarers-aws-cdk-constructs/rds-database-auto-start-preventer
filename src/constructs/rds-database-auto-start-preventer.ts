@@ -81,6 +81,7 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       environment: {
         SLACK_SECRET_NAME: slackSecret.secretName,
       },
+      // Required by aws-lambda-secret-fetcher (^0.6+): Extension HTTP API + AWS_SESSION_TOKEN.
       paramsAndSecrets: lambda.ParamsAndSecretsLayerVersion.fromVersion(lambda.ParamsAndSecretsVersions.V1_0_103, {
         cacheSize: 500,
         logLevel: lambda.ParamsAndSecretsLogLevel.INFO,
