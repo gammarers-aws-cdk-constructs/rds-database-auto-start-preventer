@@ -135,7 +135,7 @@ describe('auto-start-prevent.predicates', () => {
     });
 
     it.each(['available', 'stopped', 'storage-optimization', 'unknown'])(
-      'stops polling for %s',
+      'stops waiting for %s',
       (status) => {
         expect(isTransitionalStatus(status)).toBe(false);
         expect(waitStrategyUntilStable({ status, identifier: 'db' })).toEqual({

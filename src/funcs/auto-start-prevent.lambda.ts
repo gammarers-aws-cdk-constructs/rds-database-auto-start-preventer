@@ -20,7 +20,7 @@ import {
   normalizeInput,
   NoOpResult,
   parseRdsSourceArn,
-  PollState,
+  WaitState,
   SlackSecret,
   StoppedResult,
   Tag,
@@ -36,9 +36,9 @@ const rdsClient = new RDSClient({});
  * Durable Lambda handler for RDS auto-start prevention.
  *
  * Workflow:
- * 1. Wait 1 minute, then poll DescribeDB* until the resource leaves transitional statuses.
+ * 1. Wait 1 minute, then wait on DescribeDB* until the resource leaves transitional statuses.
  * 2. Read tags from the describe response `TagList`; skip when {@link matchTag} returns false.
- * 3. If status is `available`, call StopDB* and poll until `stopped`.
+ * 3. If status is `available`, call StopDB* and wait until `stopped`.
  * 4. If already `stopped` without calling StopDB*, return {@link NoOpResult} (no Slack notification).
  * 5. Post to Slack only when StopDB* was invoked and the resource reached `stopped`.
  *
@@ -81,8 +81,8 @@ export const processAutoStartPrevent = async (
   // Initial delay before the first describe (allows RDS to report a stable status).
   await context.wait({ minutes: 1 });
 
-  // Poll until the resource is no longer in a transitional status; capture status and TagList.
-  const firstDescribe = await context.waitForCondition<PollState>(
+  // Wait until the resource is no longer in a transitional status; capture status and TagList.
+  const firstDescribe = await context.waitForCondition<WaitState>(
     async (_state, _ctx) => {
       if (isInstance) {
         const res = await rdsClient.send(
@@ -127,7 +127,7 @@ export const processAutoStartPrevent = async (
   let didStop = false;
   let finalStatus = firstDescribe.status;
 
-  // When available, invoke StopDB* and poll until stopped.
+  // When available, invoke StopDB* and wait until stopped.
   const afterTagMatch = decideAfterTagMatch(firstDescribe.status);
   if (afterTagMatch.kind === 'stop') {
     if (isInstance) {
@@ -148,7 +148,7 @@ export const processAutoStartPrevent = async (
       });
     }
 
-    const stopped = await context.waitForCondition<PollState>(
+    const stopped = await context.waitForCondition<WaitState>(
       async (_state, _ctx) => {
         if (isInstance) {
           const res = await rdsClient.send(

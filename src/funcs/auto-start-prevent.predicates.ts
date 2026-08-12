@@ -83,24 +83,24 @@ export interface Tag {
 }
 
 /**
- * State snapshot while polling RDS describe APIs.
+ * State snapshot while waiting on RDS describe APIs.
  */
-export interface PollState {
+export interface WaitState {
   /** Current DB instance or cluster status. */
   status: string;
   /** DB instance or cluster identifier. */
   identifier: string;
-  /** Tags from the describe response; present on the first poll only. */
+  /** Tags from the describe response; present on the first wait check only. */
   tags?: Tag[];
 }
 
-/** Continue polling with a delay. */
+/** Continue waiting with a delay. */
 export interface ContinueWait {
   shouldContinue: true;
   delay: { minutes: number };
 }
 
-/** Stop polling. */
+/** Stop waiting. */
 export interface StopWait {
   shouldContinue: false;
 }
@@ -110,7 +110,7 @@ export type WaitStrategyResult = ContinueWait | StopWait;
 
 /**
  * RDS statuses that indicate an in-progress transition.
- * The handler polls every 5 minutes while the resource remains in one of these states.
+ * The handler waits every 5 minutes while the resource remains in one of these states.
  */
 export const TRANSITIONAL_STATUSES = new Set([
   'starting',
@@ -121,7 +121,7 @@ export const TRANSITIONAL_STATUSES = new Set([
 ]);
 
 /**
- * Returns true when the status is transitional and polling should continue.
+ * Returns true when the status is transitional and waiting should continue.
  *
  * @param status - Current DB instance or cluster status.
  * @returns Whether the status is transitional.
@@ -232,10 +232,10 @@ export const isDbClusterAutoStart = (
 /**
  * Wait strategy while describing until the resource leaves transitional statuses.
  *
- * @param state - Latest poll state.
+ * @param state - Latest wait state.
  * @returns Continue every 5 minutes while transitional; otherwise stop.
  */
-export const waitStrategyUntilStable = (state: PollState): WaitStrategyResult => {
+export const waitStrategyUntilStable = (state: WaitState): WaitStrategyResult => {
   if (isTransitionalStatus(state.status)) {
     return { shouldContinue: true, delay: { minutes: 5 } };
   }
@@ -245,11 +245,11 @@ export const waitStrategyUntilStable = (state: PollState): WaitStrategyResult =>
 /**
  * Wait strategy after StopDB* until the resource reaches `stopped`.
  *
- * @param state - Latest poll state.
+ * @param state - Latest wait state.
  * @returns Stop when `stopped`; continue while transitional.
  * @throws When the status is neither stopped nor transitional.
  */
-export const waitStrategyUntilStopped = (state: PollState): WaitStrategyResult => {
+export const waitStrategyUntilStopped = (state: WaitState): WaitStrategyResult => {
   if (state.status === 'stopped') {
     return { shouldContinue: false };
   }
