@@ -55,9 +55,9 @@ interface SlackSecret {
 /**
  * Normalized handler input: EventBridge event and tag filter parameters.
  *
- * CDK invokes the function with `{ event, params }` via EventBridge target input.
- * A raw EventBridge event alone is also accepted; `params` are then read from
- * `TAG_KEY` and `TAG_VALUES` environment variables.
+ * CDK always invokes the function with `{ event, params }` via EventBridge
+ * `InputTransformer` (`RuleTargetInput.fromObject`). Direct Invoke must use
+ * the same payload shape; tag filters are not read from environment variables.
  */
 interface AutoStartPreventInput {
   event: RdsAutoStartEvent;
@@ -84,58 +84,31 @@ interface StoppedResult {
   identifier: string;
 }
 
-/** Type guard: input is a raw EventBridge RDS auto-start event. */
-const isRawEvent = (input: unknown): input is RdsAutoStartEvent =>
-  typeof input === 'object' &&
-  input != null &&
-  'detail' in input &&
-  'detail-type' in input;
-
 /**
- * Builds tag filter parameters from `TAG_KEY` and `TAG_VALUES` environment variables.
- *
- * @returns Parsed tag key and values.
- * @throws When required environment variables are missing or `TAG_VALUES` is not a JSON string array.
+ * Type guard: input is `{ event, params }` as produced by the EventBridge target.
  */
-const paramsFromEnv = (): AutoStartParams => {
-  const tagKey = process.env.TAG_KEY;
-  const tagValuesJson = process.env.TAG_VALUES;
-  if (!tagKey || !tagValuesJson) {
-    throw new Error('missing environment variables TAG_KEY or TAG_VALUES.');
+const isAutoStartPreventInput = (input: unknown): input is AutoStartPreventInput => {
+  if (typeof input !== 'object' || input == null) {
+    return false;
   }
-  let tagValues: string[];
-  try {
-    tagValues = JSON.parse(tagValuesJson) as string[];
-  } catch {
-    throw new Error('TAG_VALUES must be a JSON array of strings.');
+  if (!('event' in input) || !('params' in input)) {
+    return false;
   }
-  if (!Array.isArray(tagValues)) {
-    throw new Error('TAG_VALUES must be a JSON array of strings.');
-  }
-  return { tagKey, tagValues };
+  return input.event != null && input.params != null;
 };
 
 /**
  * Normalizes invocation input to {@link AutoStartPreventInput}.
  *
- * @param input - `{ event, params }` or a raw EventBridge RDS event.
+ * @param input - `{ event, params }` from EventBridge InputTransformer (or the same shape on direct Invoke).
  * @returns Event plus tag filter parameters.
- * @throws When the payload shape is invalid.
+ * @throws When the payload is not `{ event, params }`.
  */
 const normalizeInput = (input: unknown): AutoStartPreventInput => {
-  if (isRawEvent(input)) {
-    return { event: input, params: paramsFromEnv() };
+  if (isAutoStartPreventInput(input)) {
+    return input;
   }
-  const candidate = input as AutoStartPreventInput;
-  if (
-    typeof candidate === 'object' &&
-    candidate != null &&
-    candidate.event != null &&
-    candidate.params != null
-  ) {
-    return candidate;
-  }
-  throw new Error('Invalid input: expected RDS event or { event, params }.');
+  throw new Error('Invalid input: expected { event, params }.');
 };
 
 /**
@@ -203,10 +176,10 @@ const matchTag = (params: AutoStartParams, tags?: Tag[]): boolean => {
  *
  * Tag matching uses RDS Describe APIs only; Resource Groups Tagging API is not used.
  *
- * @param input - `{ event, params }` from EventBridge, or a raw RDS event.
+ * @param input - `{ event, params }` from EventBridge InputTransformer (same shape required for direct Invoke).
  * @param context - Durable execution context for steps and waits.
  * @returns {@link StoppedResult} or {@link NoOpResult}.
- * @throws When the event is unsupported, secrets are invalid, or stop did not reach `stopped`.
+ * @throws When the payload is invalid, the event is unsupported, secrets are invalid, or stop did not reach `stopped`.
  */
 export const handler = withDurableExecution(
   async (input: unknown, context: DurableContext): Promise<StoppedResult | NoOpResult> => {

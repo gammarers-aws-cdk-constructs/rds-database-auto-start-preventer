@@ -54,7 +54,8 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
    * Creates the Durable Lambda, EventBridge rules, and IAM policies.
    *
    * The Lambda receives `{ event, params }` where `params` carries `tagKey` and `tagValues`
-   * from {@link RDSDatabaseAutoStartPreventerProps.targetResource}.
+   * from {@link RDSDatabaseAutoStartPreventerProps.targetResource}. Tag filters are passed
+   * only via that payload (not via `TAG_KEY` / `TAG_VALUES` environment variables).
    *
    * @param scope - Parent construct.
    * @param id - Construct id.
