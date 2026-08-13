@@ -26,7 +26,7 @@ jobs:
           node-version: 24.x
           package-manager-cache: false
       - name: Install dependencies
-        run: yarn install --check-files
+        run: npm install
       - name: build
         run: npx projen build
       - name: Find mutations
@@ -134,7 +134,7 @@ jobs:
           path: .repo
       - name: Install Dependencies
         id: install_dependencies
-        run: cd .repo && yarn install --check-files --frozen-lockfile
+        run: cd .repo && npm ci
       - name: Extract build artifact
         id: extract_build_artifact
         run: tar --strip-components=1 -xzvf dist/js/*.tgz -C .repo
