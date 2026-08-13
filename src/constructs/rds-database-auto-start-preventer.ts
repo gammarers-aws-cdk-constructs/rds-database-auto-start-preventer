@@ -54,7 +54,8 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
    * Creates the Durable Lambda, EventBridge rules, and IAM policies.
    *
    * The Lambda receives `{ event, params }` where `params` carries `tagKey` and `tagValues`
-   * from {@link RDSDatabaseAutoStartPreventerProps.targetResource}.
+   * from {@link RDSDatabaseAutoStartPreventerProps.targetResource}. Tag filters are passed
+   * only via that payload (not via `TAG_KEY` / `TAG_VALUES` environment variables).
    *
    * @param scope - Parent construct.
    * @param id - Construct id.
@@ -80,6 +81,7 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       environment: {
         SLACK_SECRET_NAME: slackSecret.secretName,
       },
+      // Required by aws-lambda-secret-fetcher (^0.6+): Extension HTTP API + AWS_SESSION_TOKEN.
       paramsAndSecrets: lambda.ParamsAndSecretsLayerVersion.fromVersion(lambda.ParamsAndSecretsVersions.V1_0_103, {
         cacheSize: 500,
         logLevel: lambda.ParamsAndSecretsLogLevel.INFO,

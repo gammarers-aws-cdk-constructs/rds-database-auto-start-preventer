@@ -51,7 +51,7 @@
     "@typescript-eslint/eslint-plugin": "^8",
     "@typescript-eslint/parser": "^8",
     "aws-cdk-lib": "2.232.0",
-    "aws-lambda-secret-fetcher": "^0.5.1",
+    "aws-lambda-secret-fetcher": "^0.7.1",
     "aws-sdk-client-mock": "^4.1.0",
     "aws-sdk-client-mock-jest": "^4.1.0",
     "commit-and-tag-version": "^12",
@@ -62,15 +62,16 @@
     "eslint-plugin-import": "^2.32.0",
     "jest": "^30.4.2",
     "jest-junit": "^17",
-    "jsii": "~5.9.0",
+    "jsii": "6.0.x",
     "jsii-diff": "^1.139.0",
     "jsii-docgen": "^10.5.0",
     "jsii-pacmak": "^1.139.0",
-    "jsii-rosetta": "~5.9.0",
+    "jsii-rosetta": "6.0.x",
     "projen": "^0.101.31",
+    "strict-env-resolver": "^0.6.1",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
-    "typescript": "5.9.x"
+    "typescript": "6.0.x"
   },
   "peerDependencies": {
     "aws-cdk-lib": "^2.232.0",
@@ -87,8 +88,7 @@
   },
   "devEngines": {
     "packageManager": {
-      "name": "yarn",
-      "version": "1.22.22",
+      "name": "npm",
       "onFail": "ignore"
     }
   },

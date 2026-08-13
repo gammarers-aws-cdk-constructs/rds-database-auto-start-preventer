@@ -56,7 +56,7 @@
     },
     {
       "name": "aws-lambda-secret-fetcher",
-      "version": "^0.5.1",
+      "version": "^0.7.1",
       "type": "build"
     },
     {
@@ -115,16 +115,21 @@
     },
     {
       "name": "jsii-rosetta",
-      "version": "~5.9.0",
+      "version": "6.0.x",
       "type": "build"
     },
     {
       "name": "jsii",
-      "version": "~5.9.0",
+      "version": "6.0.x",
       "type": "build"
     },
     {
       "name": "projen",
+      "type": "build"
+    },
+    {
+      "name": "strict-env-resolver",
+      "version": "^0.6.1",
       "type": "build"
     },
     {
@@ -137,7 +142,7 @@
     },
     {
       "name": "typescript",
-      "version": "5.9.x",
+      "version": "6.0.x",
       "type": "build"
     },
     {

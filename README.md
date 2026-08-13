@@ -13,7 +13,7 @@ CDK construct library that stops RDS DB instances and clusters after they are au
 
 - **EventBridge integration** – Listens for RDS DB Instance (RDS-EVENT-0154) and DB Cluster (RDS-EVENT-0153) auto-start events
 - **Handler-side tag filtering** – EventBridge rules match all auto-start events; the Lambda evaluates `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters` and skips resources that do not match `tagKey` / `tagValues`
-- **Durable Lambda** – Uses AWS Lambda Durable Execution for reliable, long-running workflow (initial wait, status polling, stop, and post-stop polling)
+- **Durable Lambda** – Uses AWS Lambda Durable Execution for reliable, long-running workflow (initial wait, status wait, stop, and post-stop wait)
 - **Least-privilege IAM** – Grants RDS describe and stop actions only (no Resource Groups Tagging API)
 - **Slack notifications** – Sends a message when this invocation called `StopDBInstance` / `StopDBCluster` and the resource reached `stopped` (no notification when the resource was already stopped or tags did not match)
 - **Optional rule toggle** – EventBridge rules can be enabled or disabled via `enableRule`
@@ -37,9 +37,9 @@ yarn add rds-database-auto-start-preventer
 ### How it works
 
 1. EventBridge invokes the Durable Lambda with the RDS auto-start event and tag filter parameters (`tagKey`, `tagValues`).
-2. The handler waits 1 minute, then polls DescribeDB* until the resource leaves transitional statuses.
+2. The handler waits 1 minute, then waits on DescribeDB* until the resource leaves transitional statuses.
 3. If the resource tag does not match, the handler exits with no stop action.
-4. If the resource is `available` and tags match, the handler calls StopDB* and polls until `stopped`.
+4. If the resource is `available` and tags match, the handler calls StopDB* and waits until `stopped`.
 5. If the resource is already `stopped` (for example, stopped by another process), the handler exits without calling StopDB* and without posting to Slack.
 6. Slack is notified only when StopDB* was invoked by this invocation and the resource reached `stopped`.
 

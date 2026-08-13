@@ -45,7 +45,7 @@ jobs:
           package-manager-cache: false
       - name: Install dependencies
         id: install_dependencies
-        run: yarn install --check-files --frozen-lockfile
+        run: npm ci
       - name: release
         id: release
         run: npx projen release
@@ -136,7 +136,7 @@ jobs:
           path: .repo
       - name: Install Dependencies
         id: install_dependencies
-        run: cd .repo && yarn install --check-files --frozen-lockfile
+        run: cd .repo && npm ci
       - name: Extract build artifact
         id: extract_build_artifact
         run: tar --strip-components=1 -xzvf dist/js/*.tgz -C .repo
