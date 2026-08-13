@@ -4527,10 +4527,10 @@ jsii-reflect@^1.139.0:
     oo-ascii-tree "^1.139.0"
     yargs "^17.7.3"
 
-jsii-rosetta@~5.9.0:
-  version "5.9.60"
-  resolved "https://registry.yarnpkg.com/jsii-rosetta/-/jsii-rosetta-5.9.60.tgz#19e914f271be4e7fc6b931024e4a2cc7257420f4"
-  integrity sha512-v3TxPClWFW/FK73mgr8hvPHLSGKVmtbjNDvxD/bzSsy9/6nvVVgLqeHDHpw/gtFAujBqTDp8n4q0fVbv4knykQ==
+jsii-rosetta@6.0.x:
+  version "6.0.10"
+  resolved "https://registry.yarnpkg.com/jsii-rosetta/-/jsii-rosetta-6.0.10.tgz#f3a32dcd2c2eb3273aa4ccfe71705ea7c8bcb69f"
+  integrity sha512-qKLoSHRSLy2xNOzYObS/4TXpzwulcvybys0mW+Aqgja55glPIPUoOKabFA0wHJvfjsSCQP9HEH+wER6TfGZEdw==
   dependencies:
     "@jsii/check-node" "^1.139.0"
     "@jsii/spec" "^1.139.0"
@@ -4538,18 +4538,18 @@ jsii-rosetta@~5.9.0:
     chalk "^4"
     commonmark "^0.31.2"
     fast-glob "^3.3.3"
-    jsii "~5.9.1"
+    jsii "~6.0.0"
     semver "^7.8.5"
     semver-intersect "^1.5.0"
     stream-json "^1.9.1"
-    typescript "~5.9"
+    typescript "~6.0"
     workerpool "^6.5.1"
     yargs "^17.7.3"
 
-jsii@~5.9.0, jsii@~5.9.1:
-  version "5.9.51"
-  resolved "https://registry.yarnpkg.com/jsii/-/jsii-5.9.51.tgz#b021dc022f69e21f2722749bc8b3282d3ee3788b"
-  integrity sha512-3YsHUi2f3knoR9CiZem3ViVNJ19iNmoZRs5DZ0Gldcq5mBJJJ4V93ycTDxq7Yomt/gSL2rhb1qsPy/zh1ksxPw==
+jsii@6.0.x, jsii@~6.0.0:
+  version "6.0.10"
+  resolved "https://registry.yarnpkg.com/jsii/-/jsii-6.0.10.tgz#f7aa85762373cdd1daa49f7b4c67aa9028462460"
+  integrity sha512-cApvz6TLS28Scvmo3Ib66lTW7MWriSYQNHcydGaf9Eifiiisp4J5EXHqvyRkl7/Eqc3shqNA1Y1+XBi/Trmwjw==
   dependencies:
     "@jsii/check-node" "1.139.0"
     "@jsii/spec" "1.139.0"
@@ -4561,7 +4561,7 @@ jsii@~5.9.0, jsii@~5.9.1:
     semver-intersect "^1.5.0"
     sort-json "^2.0.1"
     spdx-license-list "^6.12.0"
-    typescript "~5.9"
+    typescript "~6.0"
     yargs "^17.7.3"
 
 json-buffer@3.0.1:
@@ -6275,10 +6275,10 @@ typedarray@^0.0.6:
   resolved "https://registry.yarnpkg.com/typedarray/-/typedarray-0.0.6.tgz#867ac74e3864187b1d3d47d996a78ec5c8830777"
   integrity sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==
 
-typescript@5.9.x, typescript@~5.9:
-  version "5.9.3"
-  resolved "https://registry.yarnpkg.com/typescript/-/typescript-5.9.3.tgz#5b4f59e15310ab17a216f5d6cf53ee476ede670f"
-  integrity sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==
+typescript@6.0.x, typescript@~6.0:
+  version "6.0.3"
+  resolved "https://registry.yarnpkg.com/typescript/-/typescript-6.0.3.tgz#90251dc007916e972786cb94d74d15b185577d21"
+  integrity sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==
 
 uglify-js@^3.1.4:
   version "3.19.3"

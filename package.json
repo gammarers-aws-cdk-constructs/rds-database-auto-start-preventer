@@ -62,16 +62,16 @@
     "eslint-plugin-import": "^2.32.0",
     "jest": "^30.4.2",
     "jest-junit": "^17",
-    "jsii": "~5.9.0",
+    "jsii": "6.0.x",
     "jsii-diff": "^1.139.0",
     "jsii-docgen": "^10.5.0",
     "jsii-pacmak": "^1.139.0",
-    "jsii-rosetta": "~5.9.0",
+    "jsii-rosetta": "6.0.x",
     "projen": "^0.101.31",
     "strict-env-resolver": "^0.6.1",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
-    "typescript": "5.9.x"
+    "typescript": "6.0.x"
   },
   "peerDependencies": {
     "aws-cdk-lib": "^2.232.0",
