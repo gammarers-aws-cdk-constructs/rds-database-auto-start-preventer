@@ -168,9 +168,7 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
     // See: https://docs.aws.amazon.com/lambda/latest/dg/durable-getting-started-iac.html
     const autoStartPreventFunctionAlias = autoStartPreventFunction.addAlias('live');
 
-    const enableRule: boolean = (() => {
-      return props.enableRule === undefined || props.enableRule;
-    })();
+    const enableRule = props.enableRule !== false;
 
     // Pass the EventBridge event and tag filter params to the Lambda target input.
     const lambdaInput = events.RuleTargetInput.fromObject({
