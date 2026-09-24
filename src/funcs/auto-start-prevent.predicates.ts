@@ -108,9 +108,12 @@ export interface StopWait {
 /** Result of a durable waitStrategy. */
 export type WaitStrategyResult = ContinueWait | StopWait;
 
+/** Minutes between describe calls while a status is transitional or stopping. */
+export const WAIT_INTERVAL_MINUTES = 5;
+
 /**
  * RDS statuses that indicate an in-progress transition.
- * The handler waits every 5 minutes while the resource remains in one of these states.
+ * The handler waits {@link WAIT_INTERVAL_MINUTES} minutes while the resource remains in one of these states.
  */
 export const TRANSITIONAL_STATUSES = new Set([
   'starting',
@@ -233,11 +236,11 @@ export const isDbClusterAutoStart = (
  * Wait strategy while describing until the resource leaves transitional statuses.
  *
  * @param state - Latest wait state.
- * @returns Continue every 5 minutes while transitional; otherwise stop.
+ * @returns Continue at {@link WAIT_INTERVAL_MINUTES} while transitional; otherwise stop.
  */
 export const waitStrategyUntilStable = (state: WaitState): WaitStrategyResult => {
   if (isTransitionalStatus(state.status)) {
-    return { shouldContinue: true, delay: { minutes: 5 } };
+    return { shouldContinue: true, delay: { minutes: WAIT_INTERVAL_MINUTES } };
   }
   return { shouldContinue: false };
 };
@@ -246,7 +249,7 @@ export const waitStrategyUntilStable = (state: WaitState): WaitStrategyResult =>
  * Wait strategy after StopDB* until the resource reaches `stopped`.
  *
  * @param state - Latest wait state.
- * @returns Stop when `stopped`; continue while transitional.
+ * @returns Stop when `stopped`; continue at {@link WAIT_INTERVAL_MINUTES} while transitional.
  * @throws When the status is neither stopped nor transitional.
  */
 export const waitStrategyUntilStopped = (state: WaitState): WaitStrategyResult => {
@@ -254,7 +257,7 @@ export const waitStrategyUntilStopped = (state: WaitState): WaitStrategyResult =
     return { shouldContinue: false };
   }
   if (isTransitionalStatus(state.status)) {
-    return { shouldContinue: true, delay: { minutes: 5 } };
+    return { shouldContinue: true, delay: { minutes: WAIT_INTERVAL_MINUTES } };
   }
   throw new Error(`Unexpected status while waiting for stop: ${state.status}`);
 };

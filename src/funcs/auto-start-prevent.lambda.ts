@@ -40,14 +40,14 @@ const rdsClient = new RDSClient({});
  * 2. Read tags from the describe response `TagList`; skip when {@link matchTag} returns false.
  * 3. If status is `available`, call StopDB* and wait until `stopped`.
  * 4. If already `stopped` without calling StopDB*, return {@link NoOpResult} (no Slack notification).
- * 5. Post to Slack only when StopDB* was invoked and the resource reached `stopped`.
+ * 5. When `SLACK_SECRET_NAME` is set, post to Slack only after StopDB* was invoked and the resource reached `stopped`. When it is unset, skip Slack.
  *
  * Tag matching uses RDS Describe APIs only; Resource Groups Tagging API is not used.
  *
  * @param input - `{ event, params }` from EventBridge InputTransformer (same shape required for direct Invoke).
  * @param context - Durable execution context for steps and waits.
  * @returns {@link StoppedResult} or {@link NoOpResult}.
- * @throws When the payload is invalid, required env vars are missing, the event is unsupported, secrets are invalid, or stop did not reach `stopped`.
+ * @throws When the payload is invalid, the event is unsupported, a configured Slack secret is invalid, or stop did not reach `stopped`.
  */
 export const processAutoStartPrevent = async (
   input: unknown,
@@ -58,15 +58,19 @@ export const processAutoStartPrevent = async (
 
   const slackSecretName = StrictEnvResolver.resolve('SLACK_SECRET_NAME', StrictEnvType.String, {
     trim: true,
+    default: '',
   });
   // Requires AWS Parameters and Secrets Extension (ParamsAndSecrets layer) and
   // AWS_SESSION_TOKEN from the Lambda runtime (aws-lambda-secret-fetcher ^0.6+).
-  const slackSecretValue = await context.step('fetch-slack-secret', async () => {
-    return secretFetcher.getSecretValue<SlackSecret>(slackSecretName);
-  });
-
-  if (!isSlackSecret(slackSecretValue)) {
-    throw new Error('Slack secret must be JSON with non-empty token and channel.');
+  let slackSecret: SlackSecret | undefined;
+  if (slackSecretName.length > 0) {
+    const slackSecretValue = await context.step('fetch-slack-secret', async () => {
+      return secretFetcher.getSecretValue<SlackSecret>(slackSecretName);
+    });
+    if (!isSlackSecret(slackSecretValue)) {
+      throw new Error('Slack secret must be JSON with non-empty token and channel.');
+    }
+    slackSecret = slackSecretValue;
   }
 
   const isInstance = isDbInstanceAutoStart(detailType, detail);
@@ -204,19 +208,21 @@ export const processAutoStartPrevent = async (
 
   const { region, account } = parseRdsSourceArn(detail.SourceArn);
 
-  const client = new WebClient(slackSecretValue.token);
-
-  await context.step('post-slack-messages', async () => {
-    return client.chat.postMessage(
-      buildSlackStopNotification({
-        channel: slackSecretValue.channel,
-        sourceType: detail.SourceType,
-        sourceIdentifier: detail.SourceIdentifier,
-        account,
-        region,
-      }),
-    );
-  });
+  if (slackSecret !== undefined) {
+    const channel = slackSecret.channel;
+    const client = new WebClient(slackSecret.token);
+    await context.step('post-slack-messages', async () => {
+      return client.chat.postMessage(
+        buildSlackStopNotification({
+          channel,
+          sourceType: detail.SourceType,
+          sourceIdentifier: detail.SourceIdentifier,
+          account,
+          region,
+        }),
+      );
+    });
+  }
 
   return buildStoppedResult({
     finalStatus,

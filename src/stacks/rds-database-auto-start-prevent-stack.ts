@@ -11,7 +11,7 @@ export interface RDSDatabaseAutoStartPreventStackProps extends StackProps {
   readonly targetResource: TargetResource;
   /** Whether the EventBridge rules are enabled. Defaults to true if omitted. */
   readonly enableRule?: boolean;
-  /** Secrets (e.g. Slack) for notifications. */
+  /** Secrets for notifications. Omit slackSecretName to skip Slack. */
   readonly secrets: Secrets;
 }
 

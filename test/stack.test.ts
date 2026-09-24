@@ -1,6 +1,6 @@
-import { App } from 'aws-cdk-lib';
+import { App, Lazy, Token } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { RDSDatabaseAutoStartPreventStack } from '../src';
+import { RDSDatabaseAutoStartPreventStack, RDSDatabaseAutoStartPreventStackProps } from '../src';
 
 describe('Stack', () => {
   describe('Default', () => {
@@ -68,6 +68,69 @@ describe('Stack', () => {
 
     it('should match snapshot', () => {
       expect(template.toJSON()).toMatchSnapshot();
+    });
+  });
+
+  describe('Without Slack secret', () => {
+    const app = new App();
+    const stack = new RDSDatabaseAutoStartPreventStack(app, 'RDSDatabaseAutoStartPreventStack', {
+      secrets: {},
+      targetResource: {
+        tagKey: 'AutoRunningStop',
+        tagValues: ['YES'],
+      },
+    });
+    const template = Template.fromStack(stack);
+
+    it('omits the Slack secret environment variable and read permission', () => {
+      const functions = template.findResources('AWS::Lambda::Function');
+      const variables = Object.values(functions).map((resource) => {
+        const properties = resource as {
+          Properties?: { Environment?: { Variables?: Record<string, string> } };
+        };
+        return properties.Properties?.Environment?.Variables ?? {};
+      });
+      expect(variables.every((env) => !('SLACK_SECRET_NAME' in env))).toBe(true);
+      expect(JSON.stringify(template.toJSON())).not.toContain('secretsmanager:GetSecretValue');
+    });
+  });
+
+  describe('Invalid props', () => {
+    const validProps = {
+      secrets: {
+        slackSecretName: 'example/slack/webhook',
+      },
+      targetResource: {
+        tagKey: 'AutoRunningStop',
+        tagValues: ['YES'],
+      },
+    } satisfies RDSDatabaseAutoStartPreventStackProps;
+
+    const createStack = (props: RDSDatabaseAutoStartPreventStackProps): RDSDatabaseAutoStartPreventStack =>
+      new RDSDatabaseAutoStartPreventStack(new App(), 'RDSDatabaseAutoStartPreventStack', props);
+
+    it.each([
+      ['empty tagKey', { ...validProps, targetResource: { tagKey: '', tagValues: ['YES'] } }, 'targetResource.tagKey'],
+      ['whitespace tagKey', { ...validProps, targetResource: { tagKey: '   ', tagValues: ['YES'] } }, 'targetResource.tagKey'],
+      ['empty tagValues', { ...validProps, targetResource: { tagKey: 'AutoRunningStop', tagValues: [] } }, 'targetResource.tagValues'],
+      ['blank tag value', { ...validProps, targetResource: { tagKey: 'AutoRunningStop', tagValues: [''] } }, 'targetResource.tagValues'],
+      ['whitespace tag value', { ...validProps, targetResource: { tagKey: 'AutoRunningStop', tagValues: ['YES', '  '] } }, 'targetResource.tagValues'],
+      ['empty slackSecretName', { ...validProps, secrets: { slackSecretName: '' } }, 'secrets.slackSecretName'],
+      ['whitespace slackSecretName', { ...validProps, secrets: { slackSecretName: '   ' } }, 'secrets.slackSecretName'],
+    ])('rejects %s', (_name, props, message) => {
+      expect(() => createStack(props)).toThrow(message);
+    });
+
+    it('skips emptiness checks for unresolved tokens', () => {
+      const unresolved = Lazy.string({ produce: () => 'resolved-later' });
+      expect(Token.isUnresolved(unresolved)).toBe(true);
+      expect(() => createStack({
+        secrets: { slackSecretName: unresolved },
+        targetResource: {
+          tagKey: unresolved,
+          tagValues: [unresolved],
+        },
+      })).not.toThrow();
     });
   });
 });

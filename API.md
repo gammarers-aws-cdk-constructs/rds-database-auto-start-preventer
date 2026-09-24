@@ -1196,7 +1196,7 @@ const rDSDatabaseAutoStartPreventStackProps: RDSDatabaseAutoStartPreventStackPro
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.synthesizer">synthesizer</a></code> | <code>aws-cdk-lib.IStackSynthesizer</code> | Synthesis method to use while deploying this stack. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.tags">tags</a></code> | <code>{[ key: string ]: string}</code> | Tags that will be applied to the Stack. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.terminationProtection">terminationProtection</a></code> | <code>boolean</code> | Whether to enable termination protection for this stack. |
-| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.secrets">secrets</a></code> | <code><a href="#rds-database-auto-start-preventer.Secrets">Secrets</a></code> | Secrets (e.g. Slack) for notifications. |
+| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.secrets">secrets</a></code> | <code><a href="#rds-database-auto-start-preventer.Secrets">Secrets</a></code> | Secrets for notifications. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.targetResource">targetResource</a></code> | <code><a href="#rds-database-auto-start-preventer.TargetResource">TargetResource</a></code> | Tag-based target resource criteria for RDS instances/clusters to protect. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.enableRule">enableRule</a></code> | <code>boolean</code> | Whether the EventBridge rules are enabled. |
 
@@ -1454,7 +1454,9 @@ public readonly secrets: Secrets;
 
 - *Type:* <a href="#rds-database-auto-start-preventer.Secrets">Secrets</a>
 
-Secrets (e.g. Slack) for notifications.
+Secrets for notifications.
+
+Omit slackSecretName to skip Slack.
 
 ---
 
@@ -1486,7 +1488,7 @@ Defaults to true if omitted.
 
 ### Secrets <a name="Secrets" id="rds-database-auto-start-preventer.Secrets"></a>
 
-External secrets required for notifications (e.g. Slack).
+External secrets for notifications (e.g. Slack). Omit {@link Secrets.slackSecretName} to skip Slack notifications.
 
 #### Initializer <a name="Initializer" id="rds-database-auto-start-preventer.Secrets.Initializer"></a>
 
@@ -1504,7 +1506,7 @@ const secrets: Secrets = { ... }
 
 ---
 
-##### `slackSecretName`<sup>Required</sup> <a name="slackSecretName" id="rds-database-auto-start-preventer.Secrets.property.slackSecretName"></a>
+##### `slackSecretName`<sup>Optional</sup> <a name="slackSecretName" id="rds-database-auto-start-preventer.Secrets.property.slackSecretName"></a>
 
 ```typescript
 public readonly slackSecretName: string;
@@ -1513,6 +1515,8 @@ public readonly slackSecretName: string;
 - *Type:* string
 
 Name of the Secrets Manager secret containing Slack token and channel.
+
+When omitted, the handler stops matching RDS resources and does not post to Slack.
 
 ---
 
