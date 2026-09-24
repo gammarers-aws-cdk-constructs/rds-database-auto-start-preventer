@@ -1,5 +1,5 @@
-import { awscdk } from 'projen';
 import { ProjenCdkConstructLibrary } from '@gammarers/projen-projects';
+import { awscdk } from 'projen';
 const project = new ProjenCdkConstructLibrary({
   cdkVersion: '2.232.0',
   name: 'rds-database-auto-start-preventer',
@@ -22,7 +22,7 @@ const project = new ProjenCdkConstructLibrary({
     'aws-lambda-secret-fetcher@^0.7.1',
     'aws-sdk-client-mock@^4.1.0',
     'aws-sdk-client-mock-jest@^4.1.0',
-    'strict-env-resolver@^0.6.1',
+    'strict-env-resolver@^0.7.1',
   ],
   releaseToNpm: true,
   npmTrustedPublishing: true,
