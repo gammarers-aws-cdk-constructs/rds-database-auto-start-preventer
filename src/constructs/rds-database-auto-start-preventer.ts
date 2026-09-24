@@ -21,11 +21,15 @@ export interface TargetResource {
 }
 
 /**
- * External secrets required for notifications (e.g. Slack).
+ * External secrets for notifications (e.g. Slack).
+ * Omit {@link Secrets.slackSecretName} to skip Slack notifications.
  */
 export interface Secrets {
-  /** Name of the Secrets Manager secret containing Slack token and channel. */
-  readonly slackSecretName: string;
+  /**
+   * Name of the Secrets Manager secret containing Slack token and channel.
+   * When omitted, the handler stops matching RDS resources and does not post to Slack.
+   */
+  readonly slackSecretName?: string;
 }
 
 /**
@@ -54,7 +58,7 @@ const isBlankText = (value: string): boolean =>
  * Rejects empty tag filters and Slack secret names before resources are created.
  *
  * @param props - Construct props to validate.
- * @throws When tagKey, a tag value, or slackSecretName is blank, or tagValues is empty.
+ * @throws When tagKey or a tag value is blank, tagValues is empty, or slackSecretName is present but blank.
  */
 const validateProps = (props: RDSDatabaseAutoStartPreventerProps): void => {
   if (isBlankText(props.targetResource.tagKey)) {
@@ -68,7 +72,8 @@ const validateProps = (props: RDSDatabaseAutoStartPreventerProps): void => {
       throw new Error('targetResource.tagValues must not contain empty strings.');
     }
   }
-  if (isBlankText(props.secrets.slackSecretName)) {
+  const slackSecretName = props.secrets.slackSecretName;
+  if (slackSecretName !== undefined && isBlankText(slackSecretName)) {
     throw new Error('secrets.slackSecretName must be a non-empty string.');
   }
 };
@@ -93,13 +98,16 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
    * @param scope - Parent construct.
    * @param id - Construct id.
    * @param props - Target resource (tag key/values), enable rule flag, and secrets.
-   * @throws When tagKey, a tag value, or slackSecretName is blank, or tagValues is empty.
+   * @throws When tagKey or a tag value is blank, tagValues is empty, or slackSecretName is present but blank.
    */
   constructor(scope: Construct, id: string, props: RDSDatabaseAutoStartPreventerProps) {
     super(scope, id);
     validateProps(props);
 
-    const slackSecret = Secret.fromSecretNameV2(this, 'SlackSecret', props.secrets.slackSecretName);
+    const slackSecretName = props.secrets.slackSecretName;
+    const slackSecret = slackSecretName === undefined
+      ? undefined
+      : Secret.fromSecretNameV2(this, 'SlackSecret', slackSecretName);
 
     // Durable Functions-based Running Scheduler (previous Step Functions logic implemented in Lambda).
     // Durable Execution requires Node.js 22+.
@@ -113,14 +121,18 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
         executionTimeout: Duration.hours(2),
         retentionPeriod: Duration.days(1),
       },
-      environment: {
-        SLACK_SECRET_NAME: slackSecret.secretName,
-      },
-      // Required by aws-lambda-secret-fetcher (^0.6+): Extension HTTP API + AWS_SESSION_TOKEN.
-      paramsAndSecrets: lambda.ParamsAndSecretsLayerVersion.fromVersion(lambda.ParamsAndSecretsVersions.V1_0_103, {
-        cacheSize: 500,
-        logLevel: lambda.ParamsAndSecretsLogLevel.INFO,
-      }),
+      environment: slackSecret === undefined
+        ? undefined
+        : {
+          SLACK_SECRET_NAME: slackSecret.secretName,
+        },
+      // Required by aws-lambda-secret-fetcher (^0.6+) when Slack is configured.
+      paramsAndSecrets: slackSecret === undefined
+        ? undefined
+        : lambda.ParamsAndSecretsLayerVersion.fromVersion(lambda.ParamsAndSecretsVersions.V1_0_103, {
+          cacheSize: 500,
+          logLevel: lambda.ParamsAndSecretsLogLevel.INFO,
+        }),
       role: new iam.Role(this, 'AutoStartPreventFunctionRole', {
         description: 'A role to control the RDS Database or Cluster.',
         assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
@@ -149,8 +161,9 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       ],
       resources: ['*'],
     }));
-    // Grant read access to the Slack secret
-    slackSecret.grantRead(autoStartPreventFunction);
+    if (slackSecret !== undefined) {
+      slackSecret.grantRead(autoStartPreventFunction);
+    }
 
     // See: https://docs.aws.amazon.com/lambda/latest/dg/durable-getting-started-iac.html
     const autoStartPreventFunctionAlias = autoStartPreventFunction.addAlias('live');

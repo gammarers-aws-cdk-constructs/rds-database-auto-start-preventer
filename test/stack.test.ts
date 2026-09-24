@@ -71,6 +71,30 @@ describe('Stack', () => {
     });
   });
 
+  describe('Without Slack secret', () => {
+    const app = new App();
+    const stack = new RDSDatabaseAutoStartPreventStack(app, 'RDSDatabaseAutoStartPreventStack', {
+      secrets: {},
+      targetResource: {
+        tagKey: 'AutoRunningStop',
+        tagValues: ['YES'],
+      },
+    });
+    const template = Template.fromStack(stack);
+
+    it('omits the Slack secret environment variable and read permission', () => {
+      const functions = template.findResources('AWS::Lambda::Function');
+      const variables = Object.values(functions).map((resource) => {
+        const properties = resource as {
+          Properties?: { Environment?: { Variables?: Record<string, string> } };
+        };
+        return properties.Properties?.Environment?.Variables ?? {};
+      });
+      expect(variables.every((env) => !('SLACK_SECRET_NAME' in env))).toBe(true);
+      expect(JSON.stringify(template.toJSON())).not.toContain('secretsmanager:GetSecretValue');
+    });
+  });
+
   describe('Invalid props', () => {
     const validProps = {
       secrets: {

@@ -15,7 +15,7 @@ CDK construct library that stops RDS DB instances and clusters after they are au
 - **Handler-side tag filtering** – EventBridge rules match all auto-start events; the Lambda evaluates `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters` and skips resources that do not match `tagKey` / `tagValues`
 - **Durable Lambda** – Uses AWS Lambda Durable Execution for reliable, long-running workflow (initial wait, status wait, stop, and post-stop wait)
 - **Least-privilege IAM** – Grants RDS describe and stop actions only (no Resource Groups Tagging API)
-- **Slack notifications** – Sends a message when this invocation called `StopDBInstance` / `StopDBCluster` and the resource reached `stopped` (no notification when the resource was already stopped or tags did not match)
+- **Slack notifications** – When `slackSecretName` is set, sends a message when this invocation called `StopDBInstance` / `StopDBCluster` and the resource reached `stopped` (no notification when the secret name is omitted, the resource was already stopped, or tags did not match)
 - **Optional rule toggle** – EventBridge rules can be enabled or disabled via `enableRule`
 
 ## Installation
@@ -41,7 +41,7 @@ yarn add rds-database-auto-start-preventer
 3. If the resource tag does not match, the handler exits with no stop action.
 4. If the resource is `available` and tags match, the handler calls StopDB* and waits until `stopped`.
 5. If the resource is already `stopped` (for example, stopped by another process), the handler exits without calling StopDB* and without posting to Slack.
-6. Slack is notified only when StopDB* was invoked by this invocation and the resource reached `stopped`.
+6. When `slackSecretName` is set, Slack is notified only when StopDB* was invoked by this invocation and the resource reached `stopped`. When it is omitted, the handler does not post to Slack.
 
 Tag the RDS instances or clusters you want to protect (for example, `AutoStartPrevent=YES`). Resources without a matching tag are left running.
 
@@ -114,9 +114,9 @@ Example secret value:
 | `targetResource.tagValues` | `string[]` | Yes | Tag values that indicate the resource should be stopped (e.g. `['YES']`, `['production']`). |
 | `enableRule` | `boolean` | No | Whether the EventBridge rules are enabled. Defaults to `true` if omitted. |
 | `secrets` | `Secrets` | Yes | External secrets for notifications. |
-| `secrets.slackSecretName` | `string` | Yes | Name of the Secrets Manager secret containing Slack `token` and `channel`. |
+| `secrets.slackSecretName` | `string` | No | Name of the Secrets Manager secret containing Slack `token` and `channel`. Omit it to skip Slack notifications. |
 
-Empty `tagKey`, an empty `tagValues` array (or blank entries), and an empty `slackSecretName` fail at synthesis. Unresolved CDK tokens are not checked.
+Empty `tagKey`, an empty `tagValues` array (or blank entries), and a blank `slackSecretName` fail at synthesis. Omitting `slackSecretName` is allowed. Unresolved CDK tokens are not checked.
 
 ## Requirements
 

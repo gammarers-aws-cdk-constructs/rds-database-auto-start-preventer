@@ -295,11 +295,42 @@ describe('processAutoStartPrevent', () => {
     ).rejects.toThrow('Invalid input: expected { event, params }.');
   });
 
-  it('throws when SLACK_SECRET_NAME is missing', async () => {
+  it('stops an available instance without Slack when SLACK_SECRET_NAME is missing', async () => {
     delete process.env.SLACK_SECRET_NAME;
+    rdsMock
+      .on(DescribeDBInstancesCommand)
+      .resolvesOnce({
+        DBInstances: [
+          {
+            DBInstanceIdentifier: 'demo-db',
+            DBInstanceStatus: 'available',
+            TagList: [{ Key: 'AutoStartPrevent', Value: 'YES' }],
+          },
+        ],
+      })
+      .resolvesOnce({
+        DBInstances: [
+          {
+            DBInstanceIdentifier: 'demo-db',
+            DBInstanceStatus: 'stopped',
+          },
+        ],
+      });
+    rdsMock.on(StopDBInstanceCommand).resolves({});
 
-    await expect(
-      processAutoStartPrevent(instanceInput, createFakeDurableContext()),
-    ).rejects.toThrow(/SLACK_SECRET_NAME/);
+    const result = await processAutoStartPrevent(instanceInput, createFakeDurableContext());
+
+    expect(result).toEqual({
+      action: 'stopped',
+      finalStatus: 'stopped',
+      account: '123456789012',
+      region: 'ap-northeast-1',
+      identifier: 'demo-db',
+    });
+    expect(rdsMock).toHaveReceivedCommandWith(StopDBInstanceCommand, {
+      DBInstanceIdentifier: 'demo-db',
+    });
+    expect(getSecretValueMock).not.toHaveBeenCalled();
+    expect(postMessageMock).not.toHaveBeenCalled();
   });
 });
