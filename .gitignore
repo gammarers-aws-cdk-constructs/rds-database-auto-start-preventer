@@ -53,4 +53,5 @@ junit.xml
 !/API.md
 /assets/
 !/src/funcs/auto-start-prevent-function.ts
+!/.editorconfig
 !/.projenrc.ts
