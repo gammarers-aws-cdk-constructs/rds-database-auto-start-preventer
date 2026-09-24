@@ -116,6 +116,8 @@ Example secret value:
 | `secrets` | `Secrets` | Yes | External secrets for notifications. |
 | `secrets.slackSecretName` | `string` | Yes | Name of the Secrets Manager secret containing Slack `token` and `channel`. |
 
+Empty `tagKey`, an empty `tagValues` array (or blank entries), and an empty `slackSecretName` fail at synthesis. Unresolved CDK tokens are not checked.
+
 ## Requirements
 
 - **Node.js** >= 20.0.0 (for your CDK app)

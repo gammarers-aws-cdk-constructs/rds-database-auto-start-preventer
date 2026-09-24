@@ -1,4 +1,4 @@
-import { Duration, RemovalPolicy } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Token } from 'aws-cdk-lib';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -41,6 +41,39 @@ export interface RDSDatabaseAutoStartPreventerProps {
 }
 
 /**
+ * Returns true when a concrete string is empty or whitespace-only.
+ * Unresolved CDK tokens are treated as present because their value is unknown at synthesis.
+ *
+ * @param value - Prop string to check.
+ * @returns Whether the value is blank.
+ */
+const isBlankText = (value: string): boolean =>
+  !Token.isUnresolved(value) && value.trim().length === 0;
+
+/**
+ * Rejects empty tag filters and Slack secret names before resources are created.
+ *
+ * @param props - Construct props to validate.
+ * @throws When tagKey, a tag value, or slackSecretName is blank, or tagValues is empty.
+ */
+const validateProps = (props: RDSDatabaseAutoStartPreventerProps): void => {
+  if (isBlankText(props.targetResource.tagKey)) {
+    throw new Error('targetResource.tagKey must be a non-empty string.');
+  }
+  if (props.targetResource.tagValues.length === 0) {
+    throw new Error('targetResource.tagValues must contain at least one value.');
+  }
+  for (const value of props.targetResource.tagValues) {
+    if (isBlankText(value)) {
+      throw new Error('targetResource.tagValues must not contain empty strings.');
+    }
+  }
+  if (isBlankText(props.secrets.slackSecretName)) {
+    throw new Error('secrets.slackSecretName must be a non-empty string.');
+  }
+};
+
+/**
  * Deploys EventBridge rules and a Durable Lambda to stop matching RDS resources
  * after auto-start events (RDS-EVENT-0154 / RDS-EVENT-0153).
  *
@@ -60,9 +93,11 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
    * @param scope - Parent construct.
    * @param id - Construct id.
    * @param props - Target resource (tag key/values), enable rule flag, and secrets.
+   * @throws When tagKey, a tag value, or slackSecretName is blank, or tagValues is empty.
    */
   constructor(scope: Construct, id: string, props: RDSDatabaseAutoStartPreventerProps) {
     super(scope, id);
+    validateProps(props);
 
     const slackSecret = Secret.fromSecretNameV2(this, 'SlackSecret', props.secrets.slackSecretName);
 
