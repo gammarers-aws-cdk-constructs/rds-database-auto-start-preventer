@@ -68,9 +68,9 @@
     "jsii-docgen": "^10.5.0",
     "jsii-pacmak": "^1.140.0",
     "jsii-rosetta": "6.0.x",
-    "projen": "^0.103.25",
+    "projen": "^0.103.27",
     "strict-env-resolver": "^0.7.1",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.14",
     "ts-node": "^10.9.2",
     "typescript": "6.0.x"
   },
