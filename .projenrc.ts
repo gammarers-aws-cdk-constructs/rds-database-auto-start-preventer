@@ -3,7 +3,7 @@ const project = new ProjenCdkConstructLibrary({
   cdkVersion: '2.232.0',
   name: 'rds-database-auto-start-preventer',
   repositoryUrl: 'https://github.com/gammarers-aws-cdk-constructs/rds-database-auto-start-preventer.git',
-  description: 'CDK stack that stops RDS DB instances and clusters after they are auto-started by AWS (RDS-EVENT-0154 / RDS-EVENT-0153). It uses EventBridge rules and a Durable Lambda to detect auto-start events, optionally filter by tags, stop the resource if it matches, and post a notification to Slack.',
+  description: 'CDK construct library that stops RDS DB instances and clusters after they are auto-started by AWS (RDS-EVENT-0154 / RDS-EVENT-0153), using EventBridge and a Durable Lambda to filter by tags in the handler, stop matching available resources, and post to Slack only after a successful stop when a Slack secret name is set.',
   keywords: [
     'cdk',
     'aws',
