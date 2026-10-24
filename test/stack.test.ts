@@ -41,6 +41,16 @@ describe('Stack', () => {
       expect(ruleProps.every((s: string | undefined) => s === 'ENABLED')).toBe(true);
     });
 
+    it('retains the Lambda log group after create (RetainExceptOnCreate)', () => {
+      template.hasResource('AWS::Logs::LogGroup', {
+        DeletionPolicy: 'RetainExceptOnCreate',
+        UpdateReplacePolicy: 'Retain',
+        Properties: Match.objectLike({
+          RetentionInDays: 90,
+        }),
+      });
+    });
+
     it('scopes RDS describe to db/cluster ARNs and stop to matching ResourceTag', () => {
       const rdsArn = (resourceSuffix: ':db:*' | ':cluster:*') => ({
         'Fn::Join': [

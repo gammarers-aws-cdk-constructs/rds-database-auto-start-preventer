@@ -181,12 +181,12 @@ exports[`Stack Default should match snapshot 1`] = `
       "Type": "AWS::Lambda::EventInvokeConfig",
     },
     "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionLogGroup72F83E21": {
-      "DeletionPolicy": "Delete",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "RetentionInDays": 90,
       },
       "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
+      "UpdateReplacePolicy": "Retain",
     },
     "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionRole6BB82265": {
       "Properties": {
@@ -700,12 +700,12 @@ exports[`Stack Disable should match snapshot 1`] = `
       "Type": "AWS::Lambda::EventInvokeConfig",
     },
     "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionLogGroup72F83E21": {
-      "DeletionPolicy": "Delete",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "RetentionInDays": 90,
       },
       "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
+      "UpdateReplacePolicy": "Retain",
     },
     "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionRole6BB82265": {
       "Properties": {

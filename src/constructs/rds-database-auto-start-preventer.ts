@@ -144,7 +144,8 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       }),
       logGroup: new logs.LogGroup(this, 'AutoStartPreventFunctionLogGroup', {
         retention: logs.RetentionDays.THREE_MONTHS,
-        removalPolicy: RemovalPolicy.DESTROY,
+        // Delete on failed create/rollback; retain after successful create (stack delete/replace).
+        removalPolicy: RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
       }),
       loggingFormat: lambda.LoggingFormat.JSON,
       systemLogLevelV2: lambda.SystemLogLevel.INFO,
