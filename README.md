@@ -12,8 +12,8 @@ CDK construct library that stops RDS DB instances and clusters after they are au
 ## Features
 
 - **EventBridge integration** – Listens for RDS DB Instance (RDS-EVENT-0154) and DB Cluster (RDS-EVENT-0153) auto-start events
-- **Handler-side tag filtering** – EventBridge rules match all auto-start events; the Lambda evaluates `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters` and skips resources that do not match `tagKey` / `tagValues`
-- **Durable Lambda** – Uses AWS Lambda Durable Execution for reliable, long-running workflow (initial wait, status wait, stop, and post-stop wait)
+- **Handler-side tag filtering** – EventBridge rules match all auto-start events; the Lambda evaluates `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters`. Tag mismatch is a no-op (no StopDB*, no Slack)
+- **Durable Lambda** – Uses AWS Lambda Durable Execution for a long-running workflow (initial wait, status wait, stop, and post-stop wait) with a 2-hour execution timeout
 - **Least-privilege IAM** – Describe is scoped to account/region `db` / `cluster` ARNs; Stop is further limited by `aws:ResourceTag` matching `tagKey` / `tagValues` (no Resource Groups Tagging API)
 - **Slack notifications** – When `slackSecretName` is set, sends a message when this invocation called `StopDBInstance` / `StopDBCluster` and the resource reached `stopped` (no notification when the secret name is omitted, the resource was already stopped, or tags did not match)
 - **Optional rule toggle** – EventBridge rules can be enabled or disabled via `enableRule`
@@ -21,13 +21,23 @@ CDK construct library that stops RDS DB instances and clusters after they are au
 ## How it works
 
 1. EventBridge invokes the Durable Lambda with the RDS auto-start event and tag filter parameters (`tagKey`, `tagValues`).
-2. The handler waits 1 minute, then waits on DescribeDB* until the resource leaves transitional statuses.
-3. If the resource tag does not match, the handler exits with no stop action.
-4. If the resource is `available` and tags match, the handler calls StopDB* and waits until `stopped`.
+2. The handler waits **1 minute**, then calls DescribeDB* until the resource leaves transitional statuses. While the status stays transitional (or stopping after StopDB*), it waits up to **5 minutes** between describes.
+3. If the resource tag does not match, the handler exits as a **no-op** (no StopDB*, no Slack).
+4. If the resource is `available` and tags match, the handler calls StopDB* and waits until `stopped` (again using up to 5-minute intervals while transitional).
 5. If the resource is already `stopped` (for example, stopped by another process), the handler exits without calling StopDB* and without posting to Slack.
 6. When `slackSecretName` is set, Slack is notified only when StopDB* was invoked by this invocation and the resource reached `stopped`. When it is omitted, the handler does not post to Slack.
 
-Tag the RDS instances or clusters you want to protect (for example, `AutoStartPrevent=YES`). Resources without a matching tag are left running.
+Timing defaults (not configurable via props today):
+
+| Setting | Value |
+|---------|-------|
+| Initial wait before the first describe | 1 minute |
+| Wait between describes while status is transitional / stopping | up to 5 minutes |
+| Lambda invocation `timeout` | 15 minutes |
+| Durable `executionTimeout` | 2 hours |
+| Durable history `retentionPeriod` | 1 day |
+
+Tag the RDS instances or clusters you want to protect (for example, `AutoStartPrevent=YES`). Resources without a matching tag are left running (no-op).
 
 ## Installation
 
@@ -124,6 +134,8 @@ new RDSDatabaseAutoStartPreventer(stack, 'RDSDatabaseAutoStartPreventer', {
 
 ### Slack secret (AWS Secrets Manager)
 
+Create the secret **before** deploy when you want Slack notifications. Omit `slackSecretName` to skip Slack entirely (no secret and no Secrets Manager IAM are required in that case).
+
 Store a JSON object in AWS Secrets Manager with the Slack Bot Token and channel ID:
 
 | Key | Value |
@@ -139,6 +151,8 @@ Example secret value:
   "channel": "C01234ABCD"
 }
 ```
+
+When `slackSecretName` is set, the construct grants the Lambda role read access to that secret and attaches the AWS Parameters and Secrets Extension. You do not need to add a separate Secrets Manager policy yourself for this secret.
 
 ## Options
 
@@ -163,6 +177,18 @@ See [API.md](./API.md).
 - **AWS CDK** ^2.232.0
 - **constructs** ^10.5.1
 - **AWS Lambda** runtime Node.js 24.x with Durable Execution (deployed by the construct)
+
+## Notes
+
+- **Aurora / dual events:** An Aurora auto-start can emit both a DB cluster event (`RDS-EVENT-0153`) and DB instance event(s) (`RDS-EVENT-0154`). This package listens for both and may run separate Durable executions. Tag mismatch remains a no-op; if the resource is already `stopped`, the handler does not call StopDB* and does not post to Slack.
+- **IAM:** RDS Describe is limited to account/region `db` / `cluster` ARNs. Stop requires a matching `aws:ResourceTag` for your `tagKey` / `tagValues`. Slack secret read is granted only when `slackSecretName` is set.
+
+## Troubleshooting
+
+- **CloudWatch Logs:** The construct creates a dedicated Log Group for the Durable Lambda (JSON logs, 3-month retention). After a successful create, the log group uses `RetainExceptOnCreate` so it remains available for incident review after stack delete or replace.
+- **Nothing stopped / no Slack:** Confirm the resource tag matches `tagKey` / `tagValues`. Mismatch is intentional no-op with no Slack message.
+- **Stop attempted but Slack missing:** Slack runs only when this invocation called StopDB* and the resource reached `stopped`, and only when `slackSecretName` is set. Already-stopped resources skip Slack.
+- **Secret errors:** Ensure the secret exists before deploy, JSON has non-empty `token` and `channel`, and the name passed as `slackSecretName` matches Secrets Manager.
 
 ## License
 
