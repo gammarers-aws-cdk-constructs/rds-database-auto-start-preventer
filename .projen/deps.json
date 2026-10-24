@@ -1,17 +1,7 @@
 {
   "dependencies": [
     {
-      "name": "@aws-sdk/client-lambda",
-      "version": "^3.1063.0",
-      "type": "build"
-    },
-    {
       "name": "@aws-sdk/client-rds",
-      "version": "^3.1063.0",
-      "type": "build"
-    },
-    {
-      "name": "@aws-sdk/client-resource-groups-tagging-api",
       "version": "^3.1063.0",
       "type": "build"
     },

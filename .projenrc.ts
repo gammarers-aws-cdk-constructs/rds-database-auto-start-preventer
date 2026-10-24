@@ -14,9 +14,7 @@ const project = new ProjenCdkConstructLibrary({
   devDeps: [
     '@gammarers/projen-projects@^0.3.1',
     '@aws/durable-execution-sdk-js@^1.1.7',
-    '@aws-sdk/client-lambda@^3.1063.0',
     '@aws-sdk/client-rds@^3.1063.0',
-    '@aws-sdk/client-resource-groups-tagging-api@^3.1063.0',
     '@slack/web-api@^6.13.0',
     '@types/aws-lambda@^8.10.162',
     'aws-lambda-secret-fetcher@^0.8.0',
