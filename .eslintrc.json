@@ -215,6 +215,14 @@
           "method"
         ]
       }
+    ],
+    "max-len": [
+      "error",
+      {
+        "code": 160,
+        "ignoreUrls": true,
+        "ignoreStrings": true
+      }
     ]
   },
   "overrides": [

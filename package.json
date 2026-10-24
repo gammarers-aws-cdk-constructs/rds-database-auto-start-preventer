@@ -41,7 +41,7 @@
   "devDependencies": {
     "@aws-sdk/client-rds": "^3.1063.0",
     "@aws/durable-execution-sdk-js": "^1.1.7",
-    "@gammarers/projen-projects": "^0.3.1",
+    "@gammarers/projen-projects": "^0.5.10",
     "@slack/web-api": "^6.13.0",
     "@stylistic/eslint-plugin": "^2",
     "@types/aws-lambda": "^8.10.162",
