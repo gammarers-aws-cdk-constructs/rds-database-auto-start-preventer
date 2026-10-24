@@ -41,6 +41,64 @@ describe('Stack', () => {
       expect(ruleProps.every((s: string | undefined) => s === 'ENABLED')).toBe(true);
     });
 
+    it('retains the Lambda log group after create (RetainExceptOnCreate)', () => {
+      template.hasResource('AWS::Logs::LogGroup', {
+        DeletionPolicy: 'RetainExceptOnCreate',
+        UpdateReplacePolicy: 'Retain',
+        Properties: Match.objectLike({
+          RetentionInDays: 90,
+        }),
+      });
+    });
+
+    it('scopes RDS describe to db/cluster ARNs and stop to matching ResourceTag', () => {
+      const rdsArn = (resourceSuffix: ':db:*' | ':cluster:*') => ({
+        'Fn::Join': [
+          '',
+          [
+            'arn:',
+            { Ref: 'AWS::Partition' },
+            ':rds:',
+            { Ref: 'AWS::Region' },
+            ':',
+            { Ref: 'AWS::AccountId' },
+            resourceSuffix,
+          ],
+        ],
+      });
+      const rdsDbAndClusterArns = [rdsArn(':db:*'), rdsArn(':cluster:*')];
+
+      template.hasResourceProperties('AWS::IAM::Policy', {
+        PolicyDocument: {
+          Statement: Match.arrayWith([
+            {
+              Sid: 'RdsDescribeForTagFilter',
+              Effect: 'Allow',
+              Action: [
+                'rds:DescribeDBInstances',
+                'rds:DescribeDBClusters',
+              ],
+              Resource: rdsDbAndClusterArns,
+            },
+            {
+              Sid: 'RdsStopTaggedTargets',
+              Effect: 'Allow',
+              Action: [
+                'rds:StopDBInstance',
+                'rds:StopDBCluster',
+              ],
+              Resource: rdsDbAndClusterArns,
+              Condition: {
+                StringEquals: {
+                  'aws:ResourceTag/AutoRunningStop': ['YES'],
+                },
+              },
+            },
+          ]),
+        },
+      });
+    });
+
     it('should match snapshot', () => {
       expect(template.toJSON()).toMatchSnapshot();
     });

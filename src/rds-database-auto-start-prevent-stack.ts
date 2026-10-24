@@ -1,19 +1,14 @@
-
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { RDSDatabaseAutoStartPreventer, TargetResource, Secrets } from '../constructs/rds-database-auto-start-preventer';
+import {
+  RDSDatabaseAutoStartPreventer,
+  RDSDatabaseAutoStartPreventerProps,
+} from './rds-database-auto-start-preventer';
 
 /**
  * Props for the RDS database auto start prevent CDK stack.
  */
-export interface RDSDatabaseAutoStartPreventStackProps extends StackProps {
-  /** Tag-based target resource criteria for RDS instances/clusters to protect. */
-  readonly targetResource: TargetResource;
-  /** Whether the EventBridge rules are enabled. Defaults to true if omitted. */
-  readonly enableRule?: boolean;
-  /** Secrets for notifications. Omit slackSecretName to skip Slack. */
-  readonly secrets: Secrets;
-}
+export interface RDSDatabaseAutoStartPreventStackProps extends RDSDatabaseAutoStartPreventerProps, StackProps {}
 
 /**
  * CDK stack that deploys {@link RDSDatabaseAutoStartPreventer}.

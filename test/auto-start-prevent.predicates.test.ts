@@ -15,7 +15,7 @@ import {
   TRANSITIONAL_STATUSES,
   waitStrategyUntilStable,
   waitStrategyUntilStopped,
-} from '../src/funcs/auto-start-prevent.predicates';
+} from '../src/funcs/core/auto-start-prevent.predicates';
 
 describe('auto-start-prevent.predicates', () => {
   describe('isSlackSecret', () => {

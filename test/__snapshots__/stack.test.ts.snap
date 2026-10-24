@@ -90,7 +90,7 @@ exports[`Stack Default should match snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "0710e71b914c6b15581e0af199196422da79d5334c7bcd4be6e79fda11a71f41.zip",
+          "S3Key": "5438dd2be664fe6aa7bba0dabecbbe09f93a5c9e68745f1934909ef6dfacca33.zip",
         },
         "Description": "A function to prevent the RDS Database or Cluster from starting automatically.",
         "DurableConfig": {
@@ -151,7 +151,7 @@ exports[`Stack Default should match snapshot 1`] = `
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB0590b8f513d41baa86fb779a8b078ca059",
+            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05fb18189899d5103d07347299ecb5395b",
             "Version",
           ],
         },
@@ -159,7 +159,7 @@ exports[`Stack Default should match snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB0590b8f513d41baa86fb779a8b078ca059": {
+    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05fb18189899d5103d07347299ecb5395b": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -181,12 +181,12 @@ exports[`Stack Default should match snapshot 1`] = `
       "Type": "AWS::Lambda::EventInvokeConfig",
     },
     "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionLogGroup72F83E21": {
-      "DeletionPolicy": "Delete",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "RetentionInDays": 90,
       },
       "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
+      "UpdateReplacePolicy": "Retain",
     },
     "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionRole6BB82265": {
       "Properties": {
@@ -240,12 +240,108 @@ exports[`Stack Default should match snapshot 1`] = `
               "Action": [
                 "rds:DescribeDBInstances",
                 "rds:DescribeDBClusters",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":rds:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":db:*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":rds:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":cluster:*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "RdsDescribeForTagFilter",
+            },
+            {
+              "Action": [
                 "rds:StopDBInstance",
                 "rds:StopDBCluster",
               ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/AutoRunningStop": [
+                    "YES",
+                  ],
+                },
+              },
               "Effect": "Allow",
-              "Resource": "*",
-              "Sid": "RdsAutoStartControl",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":rds:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":db:*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":rds:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":cluster:*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "RdsStopTaggedTargets",
             },
             {
               "Action": [
@@ -513,7 +609,7 @@ exports[`Stack Disable should match snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "0710e71b914c6b15581e0af199196422da79d5334c7bcd4be6e79fda11a71f41.zip",
+          "S3Key": "5438dd2be664fe6aa7bba0dabecbbe09f93a5c9e68745f1934909ef6dfacca33.zip",
         },
         "Description": "A function to prevent the RDS Database or Cluster from starting automatically.",
         "DurableConfig": {
@@ -574,7 +670,7 @@ exports[`Stack Disable should match snapshot 1`] = `
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB0590b8f513d41baa86fb779a8b078ca059",
+            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05fb18189899d5103d07347299ecb5395b",
             "Version",
           ],
         },
@@ -582,7 +678,7 @@ exports[`Stack Disable should match snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB0590b8f513d41baa86fb779a8b078ca059": {
+    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05fb18189899d5103d07347299ecb5395b": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -604,12 +700,12 @@ exports[`Stack Disable should match snapshot 1`] = `
       "Type": "AWS::Lambda::EventInvokeConfig",
     },
     "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionLogGroup72F83E21": {
-      "DeletionPolicy": "Delete",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "RetentionInDays": 90,
       },
       "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
+      "UpdateReplacePolicy": "Retain",
     },
     "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionRole6BB82265": {
       "Properties": {
@@ -663,12 +759,108 @@ exports[`Stack Disable should match snapshot 1`] = `
               "Action": [
                 "rds:DescribeDBInstances",
                 "rds:DescribeDBClusters",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":rds:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":db:*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":rds:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":cluster:*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "RdsDescribeForTagFilter",
+            },
+            {
+              "Action": [
                 "rds:StopDBInstance",
                 "rds:StopDBCluster",
               ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/AutoRunningStop": [
+                    "YES",
+                  ],
+                },
+              },
               "Effect": "Allow",
-              "Resource": "*",
-              "Sid": "RdsAutoStartControl",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":rds:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":db:*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":rds:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":cluster:*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "RdsStopTaggedTargets",
             },
             {
               "Action": [

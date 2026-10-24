@@ -27,7 +27,7 @@ import {
   tagMismatchNoOp,
   waitStrategyUntilStable,
   waitStrategyUntilStopped,
-} from './auto-start-prevent.predicates';
+} from './core/auto-start-prevent.predicates';
 
 /** Shared RDS client for describe and stop API calls. */
 const rdsClient = new RDSClient({});
