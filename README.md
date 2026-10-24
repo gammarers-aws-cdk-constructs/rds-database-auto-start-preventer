@@ -51,6 +51,44 @@ pnpm add rds-database-auto-start-preventer
 
 ## Usage
 
+### Minimal deployable app
+
+Use `RDSDatabaseAutoStartPreventStack` when you want a dedicated stack you can deploy as-is. Put this in your CDK app entry (for example `bin/app.ts`), then deploy.
+
+```typescript
+import { App } from 'aws-cdk-lib';
+import { RDSDatabaseAutoStartPreventStack } from 'rds-database-auto-start-preventer';
+
+const app = new App();
+
+new RDSDatabaseAutoStartPreventStack(app, 'RDSDatabaseAutoStartPreventStack', {
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: process.env.CDK_DEFAULT_REGION,
+  },
+  stackName: 'rds-database-auto-start-prevent',
+  targetResource: {
+    tagKey: 'AutoStartPrevent',
+    tagValues: ['YES'],
+  },
+  // Omit slackSecretName to skip Slack; set it when stop should notify Slack.
+  secrets: {
+    slackSecretName: 'my-app/slack',
+  },
+});
+
+app.synth();
+```
+
+Deploy checklist:
+
+1. Install this package and peers (`aws-cdk-lib`, `constructs`) in your CDK app.
+2. Tag the RDS instances or clusters to protect (for example `AutoStartPrevent=YES`).
+3. Optional: create the Secrets Manager secret described in [Slack secret](#slack-secret-aws-secrets-manager). Omit `slackSecretName` if you do not need Slack.
+4. From the CDK app: `npx cdk deploy RDSDatabaseAutoStartPreventStack`
+
+### Construct in an existing stack
+
 Use `RDSDatabaseAutoStartPreventer` when you want to add auto-start prevention to an existing stack or compose it with other constructs. Omit `slackSecretName` to stop matching resources without Slack.
 
 ```typescript
@@ -78,28 +116,6 @@ new RDSDatabaseAutoStartPreventer(stack, 'RDSDatabaseAutoStartPreventer', {
     tagValues: ['YES'],
   },
   enableRule: true,
-  secrets: {
-    slackSecretName: 'my-app/slack',
-  },
-});
-```
-
-### Stack
-
-Use `RDSDatabaseAutoStartPreventStack` when you want a dedicated stack that only deploys the RDS auto-start prevent resources.
-
-```typescript
-import { App } from 'aws-cdk-lib';
-import { RDSDatabaseAutoStartPreventStack } from 'rds-database-auto-start-preventer';
-
-const app = new App();
-
-new RDSDatabaseAutoStartPreventStack(app, 'RDSDatabaseAutoStartPreventStack', {
-  stackName: 'rds-database-auto-start-prevent',
-  targetResource: {
-    tagKey: 'AutoStartPrevent',
-    tagValues: ['YES'],
-  },
   secrets: {
     slackSecretName: 'my-app/slack',
   },
