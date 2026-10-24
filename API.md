@@ -8,7 +8,8 @@ Deploys EventBridge rules and a Durable Lambda to stop matching RDS resources af
 
 EventBridge rules match all auto-start events; tag filtering runs in the handler
 using `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters`.
-IAM grants RDS describe and stop actions only (no Resource Groups Tagging API).
+IAM grants account/region-scoped describe on `db` / `cluster` ARNs, and stop only
+when `aws:ResourceTag` matches {@link TargetResource} (no Resource Groups Tagging API).
 
 #### Initializers <a name="Initializers" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer.Initializer"></a>
 

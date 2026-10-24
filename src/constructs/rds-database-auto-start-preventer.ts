@@ -1,4 +1,4 @@
-import { Duration, RemovalPolicy, Token } from 'aws-cdk-lib';
+import { ArnFormat, Duration, RemovalPolicy, Stack, Token } from 'aws-cdk-lib';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -84,7 +84,8 @@ const validateProps = (props: RDSDatabaseAutoStartPreventerProps): void => {
  *
  * EventBridge rules match all auto-start events; tag filtering runs in the handler
  * using `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters`.
- * IAM grants RDS describe and stop actions only (no Resource Groups Tagging API).
+ * IAM grants account/region-scoped describe on `db` / `cluster` ARNs, and stop only
+ * when `aws:ResourceTag` matches {@link TargetResource} (no Resource Groups Tagging API).
  */
 export class RDSDatabaseAutoStartPreventer extends Construct {
 
@@ -149,17 +150,44 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       systemLogLevelV2: lambda.SystemLogLevel.INFO,
       applicationLogLevelV2: lambda.ApplicationLogLevel.INFO,
     });
-    // Grant RDS describe (status and TagList) and stop permissions to the handler role.
+    const rdsDbAndClusterArns = [
+      Stack.of(this).formatArn({
+        service: 'rds',
+        resource: 'db',
+        resourceName: '*',
+        arnFormat: ArnFormat.COLON_RESOURCE_NAME,
+      }),
+      Stack.of(this).formatArn({
+        service: 'rds',
+        resource: 'cluster',
+        resourceName: '*',
+        arnFormat: ArnFormat.COLON_RESOURCE_NAME,
+      }),
+    ];
+    // Describe stays without ResourceTag so TagList can be read for non-matching resources.
     autoStartPreventFunction.addToRolePolicy(new iam.PolicyStatement({
-      sid: 'RdsAutoStartControl',
+      sid: 'RdsDescribeForTagFilter',
       effect: iam.Effect.ALLOW,
       actions: [
         'rds:DescribeDBInstances',
         'rds:DescribeDBClusters',
+      ],
+      resources: rdsDbAndClusterArns,
+    }));
+    // Stop is limited to db/cluster ARNs whose tag matches targetResource.
+    autoStartPreventFunction.addToRolePolicy(new iam.PolicyStatement({
+      sid: 'RdsStopTaggedTargets',
+      effect: iam.Effect.ALLOW,
+      actions: [
         'rds:StopDBInstance',
         'rds:StopDBCluster',
       ],
-      resources: ['*'],
+      resources: rdsDbAndClusterArns,
+      conditions: {
+        StringEquals: {
+          [`aws:ResourceTag/${props.targetResource.tagKey}`]: props.targetResource.tagValues,
+        },
+      },
     }));
     if (slackSecret !== undefined) {
       slackSecret.grantRead(autoStartPreventFunction);

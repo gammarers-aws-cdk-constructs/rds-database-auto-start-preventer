@@ -14,7 +14,7 @@ CDK construct library that stops RDS DB instances and clusters after they are au
 - **EventBridge integration** – Listens for RDS DB Instance (RDS-EVENT-0154) and DB Cluster (RDS-EVENT-0153) auto-start events
 - **Handler-side tag filtering** – EventBridge rules match all auto-start events; the Lambda evaluates `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters` and skips resources that do not match `tagKey` / `tagValues`
 - **Durable Lambda** – Uses AWS Lambda Durable Execution for reliable, long-running workflow (initial wait, status wait, stop, and post-stop wait)
-- **Least-privilege IAM** – Grants RDS describe and stop actions only (no Resource Groups Tagging API)
+- **Least-privilege IAM** – Describe is scoped to account/region `db` / `cluster` ARNs; Stop is further limited by `aws:ResourceTag` matching `tagKey` / `tagValues` (no Resource Groups Tagging API)
 - **Slack notifications** – When `slackSecretName` is set, sends a message when this invocation called `StopDBInstance` / `StopDBCluster` and the resource reached `stopped` (no notification when the secret name is omitted, the resource was already stopped, or tags did not match)
 - **Optional rule toggle** – EventBridge rules can be enabled or disabled via `enableRule`
 

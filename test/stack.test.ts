@@ -41,6 +41,54 @@ describe('Stack', () => {
       expect(ruleProps.every((s: string | undefined) => s === 'ENABLED')).toBe(true);
     });
 
+    it('scopes RDS describe to db/cluster ARNs and stop to matching ResourceTag', () => {
+      const rdsArn = (resourceSuffix: ':db:*' | ':cluster:*') => ({
+        'Fn::Join': [
+          '',
+          [
+            'arn:',
+            { Ref: 'AWS::Partition' },
+            ':rds:',
+            { Ref: 'AWS::Region' },
+            ':',
+            { Ref: 'AWS::AccountId' },
+            resourceSuffix,
+          ],
+        ],
+      });
+      const rdsDbAndClusterArns = [rdsArn(':db:*'), rdsArn(':cluster:*')];
+
+      template.hasResourceProperties('AWS::IAM::Policy', {
+        PolicyDocument: {
+          Statement: Match.arrayWith([
+            {
+              Sid: 'RdsDescribeForTagFilter',
+              Effect: 'Allow',
+              Action: [
+                'rds:DescribeDBInstances',
+                'rds:DescribeDBClusters',
+              ],
+              Resource: rdsDbAndClusterArns,
+            },
+            {
+              Sid: 'RdsStopTaggedTargets',
+              Effect: 'Allow',
+              Action: [
+                'rds:StopDBInstance',
+                'rds:StopDBCluster',
+              ],
+              Resource: rdsDbAndClusterArns,
+              Condition: {
+                StringEquals: {
+                  'aws:ResourceTag/AutoRunningStop': ['YES'],
+                },
+              },
+            },
+          ]),
+        },
+      });
+    });
+
     it('should match snapshot', () => {
       expect(template.toJSON()).toMatchSnapshot();
     });
