@@ -6,7 +6,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
-import { AutoStartPreventFunction } from '../funcs/auto-start-prevent-function';
+import { AutoStartPreventFunction } from './funcs/auto-start-prevent-function';
 
 /**
  * Tag-based criteria evaluated in the Lambda handler (not on the EventBridge rule).

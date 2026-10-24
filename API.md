@@ -1185,6 +1185,9 @@ const rDSDatabaseAutoStartPreventStackProps: RDSDatabaseAutoStartPreventStackPro
 
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
+| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.secrets">secrets</a></code> | <code><a href="#rds-database-auto-start-preventer.Secrets">Secrets</a></code> | Secrets used for notifications (e.g. Slack). |
+| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.targetResource">targetResource</a></code> | <code><a href="#rds-database-auto-start-preventer.TargetResource">TargetResource</a></code> | Tag-based target resource criteria for RDS instances/clusters to protect. |
+| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.enableRule">enableRule</a></code> | <code>boolean</code> | Whether the EventBridge rules are enabled. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.analyticsReporting">analyticsReporting</a></code> | <code>boolean</code> | Include runtime versioning information in this Stack. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.crossRegionReferences">crossRegionReferences</a></code> | <code>boolean</code> | Enable this flag to allow native cross region stack references. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.description">description</a></code> | <code>string</code> | A description of the stack. |
@@ -1197,9 +1200,44 @@ const rDSDatabaseAutoStartPreventStackProps: RDSDatabaseAutoStartPreventStackPro
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.synthesizer">synthesizer</a></code> | <code>aws-cdk-lib.IStackSynthesizer</code> | Synthesis method to use while deploying this stack. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.tags">tags</a></code> | <code>{[ key: string ]: string}</code> | Tags that will be applied to the Stack. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.terminationProtection">terminationProtection</a></code> | <code>boolean</code> | Whether to enable termination protection for this stack. |
-| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.secrets">secrets</a></code> | <code><a href="#rds-database-auto-start-preventer.Secrets">Secrets</a></code> | Secrets for notifications. |
-| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.targetResource">targetResource</a></code> | <code><a href="#rds-database-auto-start-preventer.TargetResource">TargetResource</a></code> | Tag-based target resource criteria for RDS instances/clusters to protect. |
-| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.enableRule">enableRule</a></code> | <code>boolean</code> | Whether the EventBridge rules are enabled. |
+
+---
+
+##### `secrets`<sup>Required</sup> <a name="secrets" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.secrets"></a>
+
+```typescript
+public readonly secrets: Secrets;
+```
+
+- *Type:* <a href="#rds-database-auto-start-preventer.Secrets">Secrets</a>
+
+Secrets used for notifications (e.g. Slack).
+
+---
+
+##### `targetResource`<sup>Required</sup> <a name="targetResource" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.targetResource"></a>
+
+```typescript
+public readonly targetResource: TargetResource;
+```
+
+- *Type:* <a href="#rds-database-auto-start-preventer.TargetResource">TargetResource</a>
+
+Tag-based target resource criteria for RDS instances/clusters to protect.
+
+---
+
+##### `enableRule`<sup>Optional</sup> <a name="enableRule" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.enableRule"></a>
+
+```typescript
+public readonly enableRule: boolean;
+```
+
+- *Type:* boolean
+
+Whether the EventBridge rules are enabled.
+
+Defaults to true if omitted.
 
 ---
 
@@ -1444,46 +1482,6 @@ public readonly terminationProtection: boolean;
 - *Default:* false
 
 Whether to enable termination protection for this stack.
-
----
-
-##### `secrets`<sup>Required</sup> <a name="secrets" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.secrets"></a>
-
-```typescript
-public readonly secrets: Secrets;
-```
-
-- *Type:* <a href="#rds-database-auto-start-preventer.Secrets">Secrets</a>
-
-Secrets for notifications.
-
-Omit slackSecretName to skip Slack.
-
----
-
-##### `targetResource`<sup>Required</sup> <a name="targetResource" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.targetResource"></a>
-
-```typescript
-public readonly targetResource: TargetResource;
-```
-
-- *Type:* <a href="#rds-database-auto-start-preventer.TargetResource">TargetResource</a>
-
-Tag-based target resource criteria for RDS instances/clusters to protect.
-
----
-
-##### `enableRule`<sup>Optional</sup> <a name="enableRule" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.enableRule"></a>
-
-```typescript
-public readonly enableRule: boolean;
-```
-
-- *Type:* boolean
-
-Whether the EventBridge rules are enabled.
-
-Defaults to true if omitted.
 
 ---
 
