@@ -17,7 +17,7 @@ export class AutoStartPreventFunction extends lambda.Function {
     super(scope, id, {
       description: 'src/funcs/auto-start-prevent.lambda.ts',
       ...props,
-      runtime: new lambda.Runtime('nodejs24.x', lambda.RuntimeFamily.NODEJS),
+      runtime: new lambda.Runtime('nodejs24.x', lambda.RuntimeFamily.NODEJS, { supportsInlineCode: true }),
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../assets/funcs/auto-start-prevent.lambda')),
     });

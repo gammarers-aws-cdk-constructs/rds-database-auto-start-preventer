@@ -45,6 +45,7 @@
     "node_modules/",
     "*.generated.ts",
     "coverage",
+    "src/funcs/auto-start-prevent-function.ts",
     "!.projenrc.ts",
     "!projenrc/**/*.ts"
   ],
