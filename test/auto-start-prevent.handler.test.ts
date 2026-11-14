@@ -247,6 +247,39 @@ describe('processAutoStartPrevent', () => {
     expect(postMessageMock).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the Slack secret and Slack response out of step results', async () => {
+    rdsMock
+      .on(DescribeDBInstancesCommand)
+      .resolvesOnce({
+        DBInstances: [
+          {
+            DBInstanceIdentifier: 'demo-db',
+            DBInstanceStatus: 'available',
+            TagList: [{ Key: 'AutoStartPrevent', Value: 'YES' }],
+          },
+        ],
+      })
+      .resolvesOnce({
+        DBInstances: [
+          {
+            DBInstanceIdentifier: 'demo-db',
+            DBInstanceStatus: 'stopped',
+          },
+        ],
+      });
+    rdsMock.on(StopDBInstanceCommand).resolves({});
+    const context = createFakeDurableContext();
+    const stepMock = context.step as unknown as jest.Mock;
+
+    await processAutoStartPrevent(instanceInput, context);
+
+    const stepNames = stepMock.mock.calls.map(([name]) => name);
+    expect(stepNames).toEqual(['stop-db-instance', 'post-slack-messages']);
+    const stepResults = await Promise.all(stepMock.mock.results.map((r) => r.value));
+    expect(stepResults).toEqual([undefined, undefined]);
+    expect(getSecretValueMock).toHaveBeenCalledWith('example/slack/secret');
+  });
+
   it('throws for unsupported event combinations', async () => {
     const unsupported = {
       ...instanceInput,

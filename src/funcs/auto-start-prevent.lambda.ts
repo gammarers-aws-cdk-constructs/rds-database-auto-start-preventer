@@ -62,11 +62,11 @@ export const processAutoStartPrevent = async (
   });
   // Requires AWS Parameters and Secrets Extension (ParamsAndSecrets layer) and
   // AWS_SESSION_TOKEN from the Lambda runtime (aws-lambda-secret-fetcher ^0.6+).
+  // Fetched outside context.step: step results are persisted in the durable execution history,
+  // so the token and channel must not be returned from a step. Re-fetching on replay is read-only.
   let slackSecret: SlackSecret | undefined;
   if (slackSecretName.length > 0) {
-    const slackSecretValue = await context.step('fetch-slack-secret', async () => {
-      return secretFetcher.getSecretValue<SlackSecret>(slackSecretName);
-    });
+    const slackSecretValue = await secretFetcher.getSecretValue<SlackSecret>(slackSecretName);
     if (!isSlackSecret(slackSecretValue)) {
       throw new Error('Slack secret must be JSON with non-empty token and channel.');
     }
@@ -211,8 +211,9 @@ export const processAutoStartPrevent = async (
   if (slackSecret !== undefined) {
     const channel = slackSecret.channel;
     const client = new WebClient(slackSecret.token);
+    // Return nothing so the Slack API response is not persisted in the durable execution history.
     await context.step('post-slack-messages', async () => {
-      return client.chat.postMessage(
+      await client.chat.postMessage(
         buildSlackStopNotification({
           channel,
           sourceType: detail.SourceType,
