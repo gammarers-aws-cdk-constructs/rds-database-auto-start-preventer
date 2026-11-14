@@ -10,6 +10,9 @@ const project = new ProjenCdkConstructLibrary({
     'aws-cdk',
     'rds',
   ],
+  peerDeps: [
+    'lambda-failure-detector@^0.2.3',
+  ],
   devDeps: [
     '@gammarers/projen-projects@^0.5.10',
     '@aws/durable-execution-sdk-js@^3.0.0',

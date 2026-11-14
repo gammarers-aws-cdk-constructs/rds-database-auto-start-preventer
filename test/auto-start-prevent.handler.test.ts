@@ -114,6 +114,8 @@ const expectNoRdsCommandSent = (): void => {
 };
 
 describe('auto-start-prevent handler', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
   beforeAll(async () => {
     await LocalDurableTestRunner.setupTestEnvironment({ skipTime: true });
   });
@@ -123,6 +125,7 @@ describe('auto-start-prevent handler', () => {
   });
 
   beforeEach(() => {
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     rdsMock.reset();
     postMessageMock.mockClear();
     (WebClient as unknown as jest.Mock).mockClear();
@@ -135,6 +138,7 @@ describe('auto-start-prevent handler', () => {
   });
 
   afterEach(() => {
+    consoleErrorSpy.mockRestore();
     delete process.env.SLACK_SECRET_NAME;
   });
 
@@ -216,6 +220,7 @@ describe('auto-start-prevent handler', () => {
         ]),
       }),
     );
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
   it('stops an available cluster and posts Slack', async () => {
@@ -346,6 +351,11 @@ describe('auto-start-prevent handler', () => {
     expect(execution.getError().errorMessage).toBe(
       'Cannot stop DB demo-db: status is storage-full, expected available or stopped.',
     );
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('AutoStartPreventFailed', {
+      identifier: 'demo-db',
+      errorMessage: 'Cannot stop DB demo-db: status is storage-full, expected available or stopped.',
+    });
     expectNoStopSent();
     expect(postMessageMock).not.toHaveBeenCalled();
   });
@@ -357,7 +367,24 @@ describe('auto-start-prevent handler', () => {
 
     expect(execution.getStatus()).toBe('FAILED');
     expect(execution.getError().errorMessage).toBe('Slack secret must be JSON with non-empty token and channel.');
+    expect(consoleErrorSpy).toHaveBeenCalledWith('AutoStartPreventFailed', {
+      identifier: 'demo-db',
+      errorMessage: 'Slack secret must be JSON with non-empty token and channel.',
+    });
+    expect(JSON.stringify(consoleErrorSpy.mock.calls)).not.toContain('not-json');
     expectNoRdsCommandSent();
+  });
+
+  it('logs the failure term when a non-Error value is thrown', async () => {
+    getSecretValueMock.mockRejectedValue('secret fetch failed');
+
+    const { execution } = await runHandler(instanceInput);
+
+    expect(execution.getStatus()).toBe('FAILED');
+    expect(consoleErrorSpy).toHaveBeenCalledWith('AutoStartPreventFailed', {
+      identifier: 'demo-db',
+      errorMessage: 'secret fetch failed',
+    });
   });
 
   it('fails when input is not { event, params }', async () => {
@@ -365,6 +392,10 @@ describe('auto-start-prevent handler', () => {
 
     expect(execution.getStatus()).toBe('FAILED');
     expect(execution.getError().errorMessage).toBe('Invalid input: expected { event, params }.');
+    expect(consoleErrorSpy).toHaveBeenCalledWith('AutoStartPreventFailed', {
+      identifier: undefined,
+      errorMessage: 'Invalid input: expected { event, params }.',
+    });
     expectNoRdsCommandSent();
   });
 

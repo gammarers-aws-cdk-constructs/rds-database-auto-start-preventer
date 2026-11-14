@@ -166,7 +166,7 @@ new RDSDatabaseAutoStartPreventStack(scope: Construct, id: string, props: RDSDat
 | --- | --- | --- |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStack.Initializer.parameter.scope">scope</a></code> | <code>constructs.Construct</code> | - Parent construct. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStack.Initializer.parameter.id">id</a></code> | <code>string</code> | - Stack id. |
-| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStack.Initializer.parameter.props">props</a></code> | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps">RDSDatabaseAutoStartPreventStackProps</a></code> | - Stack props (target resource, enable rule, secrets). |
+| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStack.Initializer.parameter.props">props</a></code> | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps">RDSDatabaseAutoStartPreventStackProps</a></code> | - Stack props (target resource, enable rule, secrets, failure detection). |
 
 ---
 
@@ -190,7 +190,7 @@ Stack id.
 
 - *Type:* <a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps">RDSDatabaseAutoStartPreventStackProps</a>
 
-Stack props (target resource, enable rule, secrets).
+Stack props (target resource, enable rule, secrets, failure detection).
 
 ---
 
@@ -1109,6 +1109,58 @@ Whether termination protection is enabled for this stack.
 
 ## Structs <a name="Structs" id="Structs"></a>
 
+### AutoStartPreventFailureDetectionProps <a name="AutoStartPreventFailureDetectionProps" id="rds-database-auto-start-preventer.AutoStartPreventFailureDetectionProps"></a>
+
+Opt-in CloudWatch failure detection for the auto-start prevent Lambda.
+
+When `enabled` is true, creates alarms on the Lambda `Errors` and `Throttles` metrics and on
+failed executions logged by the handler (custom metric `RDSDatabaseAutoStartPreventer` / `AutoStartPreventFailed`).
+No SNS topic is created; alarms notify `alarmTopic` only when it is set.
+
+#### Initializer <a name="Initializer" id="rds-database-auto-start-preventer.AutoStartPreventFailureDetectionProps.Initializer"></a>
+
+```typescript
+import { AutoStartPreventFailureDetectionProps } from 'rds-database-auto-start-preventer'
+
+const autoStartPreventFailureDetectionProps: AutoStartPreventFailureDetectionProps = { ... }
+```
+
+#### Properties <a name="Properties" id="Properties"></a>
+
+| **Name** | **Type** | **Description** |
+| --- | --- | --- |
+| <code><a href="#rds-database-auto-start-preventer.AutoStartPreventFailureDetectionProps.property.alarmTopic">alarmTopic</a></code> | <code>aws-cdk-lib.aws_sns.ITopic</code> | SNS topic for alarm notifications. |
+| <code><a href="#rds-database-auto-start-preventer.AutoStartPreventFailureDetectionProps.property.enabled">enabled</a></code> | <code>boolean</code> | When true, creates failure detection alarms and log-based metrics. |
+
+---
+
+##### `alarmTopic`<sup>Optional</sup> <a name="alarmTopic" id="rds-database-auto-start-preventer.AutoStartPreventFailureDetectionProps.property.alarmTopic"></a>
+
+```typescript
+public readonly alarmTopic: ITopic;
+```
+
+- *Type:* aws-cdk-lib.aws_sns.ITopic
+
+SNS topic for alarm notifications.
+
+When omitted, alarms are created without SNS actions.
+
+---
+
+##### `enabled`<sup>Optional</sup> <a name="enabled" id="rds-database-auto-start-preventer.AutoStartPreventFailureDetectionProps.property.enabled"></a>
+
+```typescript
+public readonly enabled: boolean;
+```
+
+- *Type:* boolean
+- *Default:* false when omitted
+
+When true, creates failure detection alarms and log-based metrics.
+
+---
+
 ### RDSDatabaseAutoStartPreventerProps <a name="RDSDatabaseAutoStartPreventerProps" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps"></a>
 
 Props for the RDS database auto-start preventer construct.
@@ -1128,6 +1180,7 @@ const rDSDatabaseAutoStartPreventerProps: RDSDatabaseAutoStartPreventerProps = {
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps.property.secrets">secrets</a></code> | <code><a href="#rds-database-auto-start-preventer.Secrets">Secrets</a></code> | Secrets used for notifications (e.g. Slack). |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps.property.targetResource">targetResource</a></code> | <code><a href="#rds-database-auto-start-preventer.TargetResource">TargetResource</a></code> | Tag-based target resource criteria for RDS instances/clusters to protect. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps.property.enableRule">enableRule</a></code> | <code>boolean</code> | Whether the EventBridge rules are enabled. |
+| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps.property.failureDetection">failureDetection</a></code> | <code><a href="#rds-database-auto-start-preventer.AutoStartPreventFailureDetectionProps">AutoStartPreventFailureDetectionProps</a></code> | CloudWatch failure detection for the Lambda. |
 
 ---
 
@@ -1169,6 +1222,19 @@ Defaults to true if omitted.
 
 ---
 
+##### `failureDetection`<sup>Optional</sup> <a name="failureDetection" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps.property.failureDetection"></a>
+
+```typescript
+public readonly failureDetection: AutoStartPreventFailureDetectionProps;
+```
+
+- *Type:* <a href="#rds-database-auto-start-preventer.AutoStartPreventFailureDetectionProps">AutoStartPreventFailureDetectionProps</a>
+- *Default:* no alarms
+
+CloudWatch failure detection for the Lambda.
+
+---
+
 ### RDSDatabaseAutoStartPreventStackProps <a name="RDSDatabaseAutoStartPreventStackProps" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps"></a>
 
 Props for the RDS database auto start prevent CDK stack.
@@ -1188,6 +1254,7 @@ const rDSDatabaseAutoStartPreventStackProps: RDSDatabaseAutoStartPreventStackPro
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.secrets">secrets</a></code> | <code><a href="#rds-database-auto-start-preventer.Secrets">Secrets</a></code> | Secrets used for notifications (e.g. Slack). |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.targetResource">targetResource</a></code> | <code><a href="#rds-database-auto-start-preventer.TargetResource">TargetResource</a></code> | Tag-based target resource criteria for RDS instances/clusters to protect. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.enableRule">enableRule</a></code> | <code>boolean</code> | Whether the EventBridge rules are enabled. |
+| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.failureDetection">failureDetection</a></code> | <code><a href="#rds-database-auto-start-preventer.AutoStartPreventFailureDetectionProps">AutoStartPreventFailureDetectionProps</a></code> | CloudWatch failure detection for the Lambda. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.analyticsReporting">analyticsReporting</a></code> | <code>boolean</code> | Include runtime versioning information in this Stack. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.crossRegionReferences">crossRegionReferences</a></code> | <code>boolean</code> | Enable this flag to allow native cross region stack references. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.description">description</a></code> | <code>string</code> | A description of the stack. |
@@ -1238,6 +1305,19 @@ public readonly enableRule: boolean;
 Whether the EventBridge rules are enabled.
 
 Defaults to true if omitted.
+
+---
+
+##### `failureDetection`<sup>Optional</sup> <a name="failureDetection" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStackProps.property.failureDetection"></a>
+
+```typescript
+public readonly failureDetection: AutoStartPreventFailureDetectionProps;
+```
+
+- *Type:* <a href="#rds-database-auto-start-preventer.AutoStartPreventFailureDetectionProps">AutoStartPreventFailureDetectionProps</a>
+- *Default:* no alarms
+
+CloudWatch failure detection for the Lambda.
 
 ---
 

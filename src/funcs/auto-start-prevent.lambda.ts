@@ -29,6 +29,7 @@ import {
   waitStrategyUntilStable,
   waitStrategyUntilStopped,
 } from './core/auto-start-prevent.predicates';
+import { AUTO_START_PREVENT_FAILED_LOG_TERM } from '../settings/consts';
 
 /** Shared RDS client for describe and stop API calls. */
 const rdsClient = new RDSClient({});
@@ -232,4 +233,42 @@ export const processAutoStartPrevent = async (
   });
 };
 
-export const handler = withDurableExecution(processAutoStartPrevent);
+/**
+ * Returns the RDS source identifier from the input, or undefined when the input is invalid.
+ *
+ * @param input - Raw handler input.
+ * @returns DB instance or cluster identifier when available.
+ */
+const sourceIdentifierOf = (input: unknown): string | undefined => {
+  try {
+    return normalizeInput(input).event.detail.SourceIdentifier;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Runs {@link processAutoStartPrevent} and logs {@link AUTO_START_PREVENT_FAILED_LOG_TERM} before rethrowing,
+ * because a failed durable execution does not raise the Lambda `Errors` metric.
+ *
+ * @param input - `{ event, params }` from EventBridge InputTransformer.
+ * @param context - Durable execution context for steps and waits.
+ * @returns {@link StoppedResult} or {@link NoOpResult}.
+ * @throws The error from {@link processAutoStartPrevent}.
+ */
+const processAutoStartPreventWithFailureLog = async (
+  input: unknown,
+  context: DurableContext,
+): Promise<StoppedResult | NoOpResult> => {
+  try {
+    return await processAutoStartPrevent(input, context);
+  } catch (error) {
+    console.error(AUTO_START_PREVENT_FAILED_LOG_TERM, {
+      identifier: sourceIdentifierOf(input),
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+};
+
+export const handler = withDurableExecution(processAutoStartPreventWithFailureLog);

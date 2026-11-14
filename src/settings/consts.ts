@@ -18,3 +18,6 @@ export const DB_CLUSTER_AUTO_START_EVENT = {
   eventId: 'RDS-EVENT-0153',
   sourceType: 'CLUSTER',
 } as const;
+
+/** Term logged by the handler when an execution fails; matched by the failure detection metric filter. */
+export const AUTO_START_PREVENT_FAILED_LOG_TERM = 'AutoStartPreventFailed';
