@@ -97,6 +97,17 @@ const clusterInput = {
   },
 };
 
+const expectNoStopSent = (): void => {
+  expect(rdsMock).not.toHaveReceivedCommand(StopDBInstanceCommand);
+  expect(rdsMock).not.toHaveReceivedCommand(StopDBClusterCommand);
+};
+
+const expectNoRdsCommandSent = (): void => {
+  expect(rdsMock).not.toHaveReceivedCommand(DescribeDBInstancesCommand);
+  expect(rdsMock).not.toHaveReceivedCommand(DescribeDBClustersCommand);
+  expectNoStopSent();
+};
+
 describe('processAutoStartPrevent', () => {
   beforeEach(() => {
     rdsMock.reset();
@@ -349,6 +360,7 @@ describe('processAutoStartPrevent', () => {
     await expect(
       processAutoStartPrevent(unsupported, createFakeDurableContext()),
     ).rejects.toThrow(/Unsupported event/);
+    expectNoRdsCommandSent();
   });
 
   it('throws when matched tags but status is neither available nor stopped', async () => {
@@ -365,6 +377,7 @@ describe('processAutoStartPrevent', () => {
     await expect(
       processAutoStartPrevent(instanceInput, createFakeDurableContext()),
     ).rejects.toThrow('Cannot stop DB demo-db: status is storage-full, expected available or stopped.');
+    expectNoStopSent();
     expect(postMessageMock).not.toHaveBeenCalled();
   });
 
@@ -374,12 +387,14 @@ describe('processAutoStartPrevent', () => {
     await expect(
       processAutoStartPrevent(instanceInput, createFakeDurableContext()),
     ).rejects.toThrow('Slack secret must be JSON with non-empty token and channel.');
+    expectNoRdsCommandSent();
   });
 
   it('throws when input is not { event, params }', async () => {
     await expect(
       processAutoStartPrevent(instanceInput.event, createFakeDurableContext()),
     ).rejects.toThrow('Invalid input: expected { event, params }.');
+    expectNoRdsCommandSent();
   });
 
   it('stops an available instance without Slack when SLACK_SECRET_NAME is missing', async () => {

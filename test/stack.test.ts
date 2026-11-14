@@ -2,6 +2,49 @@ import { App, Lazy, Token } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { RDSDatabaseAutoStartPreventStack, RDSDatabaseAutoStartPreventStackProps } from '../src';
 
+/**
+ * Asserts the wiring every stack needs: one durable function invoked by both auto-start rules
+ * through the `live` alias (qualified ARN), not `$LATEST`.
+ */
+const expectDurableWiring = (template: Template): void => {
+  template.resourceCountIs('AWS::Lambda::Function', 1);
+  template.resourceCountIs('AWS::Lambda::Version', 1);
+  template.resourceCountIs('AWS::Lambda::Alias', 1);
+  template.resourceCountIs('AWS::Lambda::Permission', 2);
+  template.resourceCountIs('AWS::Events::Rule', 2);
+
+  template.hasResourceProperties('AWS::Lambda::Function', {
+    DurableConfig: {
+      ExecutionTimeout: 7200,
+      RetentionPeriodInDays: 1,
+    },
+  });
+  template.hasResourceProperties('AWS::Lambda::Alias', { Name: 'live' });
+
+  const [aliasLogicalId] = Object.keys(template.findResources('AWS::Lambda::Alias'));
+  const aliasTarget = Match.objectLike({
+    Arn: { Ref: aliasLogicalId },
+    RetryPolicy: { MaximumRetryAttempts: 2 },
+  });
+
+  template.hasResourceProperties('AWS::Events::Rule', {
+    EventPattern: {
+      'source': ['aws.rds'],
+      'detail-type': ['RDS DB Instance Event'],
+      'detail': { EventID: ['RDS-EVENT-0154'] },
+    },
+    Targets: [aliasTarget],
+  });
+  template.hasResourceProperties('AWS::Events::Rule', {
+    EventPattern: {
+      'source': ['aws.rds'],
+      'detail-type': ['RDS DB Cluster Event'],
+      'detail': { EventID: ['RDS-EVENT-0153'] },
+    },
+    Targets: [aliasTarget],
+  });
+};
+
 describe('Stack', () => {
   describe('Default', () => {
     const app = new App();
@@ -30,8 +73,8 @@ describe('Stack', () => {
       }));
     });
 
-    it('should have event rule count', () => {
-      template.resourceCountIs('AWS::Events::Rule', 2);
+    it('wires both auto-start rules to the durable function alias', () => {
+      expectDurableWiring(template);
     });
 
     it('should have event rules enabled', () => {
@@ -118,6 +161,10 @@ describe('Stack', () => {
     });
     const template = Template.fromStack(stack);
 
+    it('wires both auto-start rules to the durable function alias', () => {
+      expectDurableWiring(template);
+    });
+
     it('should have event rules disabled', () => {
       const rules = template.findResources('AWS::Events::Rule');
       const ruleProps = Object.values(rules).map((r: { Properties?: { State?: string } }) => r.Properties?.State);
@@ -139,6 +186,10 @@ describe('Stack', () => {
       },
     });
     const template = Template.fromStack(stack);
+
+    it('wires both auto-start rules to the durable function alias', () => {
+      expectDurableWiring(template);
+    });
 
     it('omits the Slack secret environment variable and read permission', () => {
       const functions = template.findResources('AWS::Lambda::Function');
