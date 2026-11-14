@@ -14,13 +14,13 @@ import {
   buildStoppedResult,
   DB_STATUS,
   decideAfterTagMatch,
-  isDbClusterAutoStart,
-  isDbInstanceAutoStart,
   isSlackSecret,
   matchTag,
   normalizeInput,
   NoOpResult,
   parseRdsSourceArn,
+  ResourceKind,
+  resolveResourceKind,
   WaitState,
   SlackSecret,
   StoppedResult,
@@ -41,6 +41,71 @@ const SLACK_REQUEST_TIMEOUT_MS = 30_000;
 
 /** Slack retries after the first attempt, kept within the Lambda invocation timeout. */
 const SLACK_RETRIES = 2;
+
+/** Durable step names for StopDB*; kept per resource kind so existing execution histories still replay. */
+const STOP_STEP_NAMES: Record<ResourceKind, string> = {
+  instance: 'stop-db-instance',
+  cluster: 'stop-db-cluster',
+};
+
+/**
+ * Describes the DB instance or cluster and returns its status, identifier, and tags.
+ * Falls back to `unknown`, the requested identifier, and no tags when the response has no resource.
+ *
+ * @param kind - Resource type to describe.
+ * @param identifier - DB instance or cluster identifier.
+ * @returns Wait state including the resource TagList.
+ */
+const describeResource = async (kind: ResourceKind, identifier: string): Promise<Required<WaitState>> => {
+  if (kind === 'instance') {
+    const res = await rdsClient.send(
+      new DescribeDBInstancesCommand({
+        DBInstanceIdentifier: identifier,
+      }),
+    );
+    const db = res.DBInstances?.[0];
+    return {
+      status: db?.DBInstanceStatus ?? DB_STATUS.UNKNOWN,
+      identifier: db?.DBInstanceIdentifier ?? identifier,
+      tags: (db?.TagList ?? []) as Tag[],
+    };
+  }
+
+  const res = await rdsClient.send(
+    new DescribeDBClustersCommand({
+      DBClusterIdentifier: identifier,
+    }),
+  );
+  const cluster = res.DBClusters?.[0];
+  return {
+    status: cluster?.Status ?? DB_STATUS.UNKNOWN,
+    identifier: cluster?.DBClusterIdentifier ?? identifier,
+    tags: (cluster?.TagList ?? []) as Tag[],
+  };
+};
+
+/**
+ * Calls StopDBInstance or StopDBCluster.
+ *
+ * @param kind - Resource type to stop.
+ * @param identifier - DB instance or cluster identifier.
+ */
+const stopResource = async (kind: ResourceKind, identifier: string): Promise<void> => {
+  if (kind === 'instance') {
+    await rdsClient.send(
+      new StopDBInstanceCommand({
+        DBInstanceIdentifier: identifier,
+      }),
+    );
+    return;
+  }
+
+  await rdsClient.send(
+    new StopDBClusterCommand({
+      DBClusterIdentifier: identifier,
+    }),
+  );
+};
 
 /**
  * Durable Lambda handler for RDS auto-start prevention.
@@ -83,14 +148,7 @@ export const processAutoStartPrevent = async (
     slackSecret = slackSecretValue;
   }
 
-  const isInstance = isDbInstanceAutoStart(detailType, detail);
-  const isCluster = isDbClusterAutoStart(detailType, detail);
-
-  if (!isInstance && !isCluster) {
-    throw new Error(
-      `Unsupported event: detail-type=${detailType}, SourceType=${detail.SourceType}, EventID=${detail.EventID}`,
-    );
-  }
+  const kind = resolveResourceKind(detailType, detail);
 
   // Initial delay before the first describe (allows RDS to report a stable status).
   await context.wait('initial-delay', { minutes: 1 });
@@ -98,33 +156,7 @@ export const processAutoStartPrevent = async (
   // Wait until the resource is no longer in a transitional status; capture status and TagList.
   const firstDescribe = await context.waitForCondition<WaitState>(
     'wait-until-stable',
-    async (_state, _ctx) => {
-      if (isInstance) {
-        const res = await rdsClient.send(
-          new DescribeDBInstancesCommand({
-            DBInstanceIdentifier: detail.SourceIdentifier,
-          }),
-        );
-        const db = res.DBInstances?.[0];
-        return {
-          status: db?.DBInstanceStatus ?? DB_STATUS.UNKNOWN,
-          identifier: db?.DBInstanceIdentifier ?? detail.SourceIdentifier,
-          tags: (db?.TagList ?? []) as Tag[],
-        };
-      }
-
-      const res = await rdsClient.send(
-        new DescribeDBClustersCommand({
-          DBClusterIdentifier: detail.SourceIdentifier,
-        }),
-      );
-      const cluster = res.DBClusters?.[0];
-      return {
-        status: cluster?.Status ?? DB_STATUS.UNKNOWN,
-        identifier: cluster?.DBClusterIdentifier ?? detail.SourceIdentifier,
-        tags: (cluster?.TagList ?? []) as Tag[],
-      };
-    },
+    async (_state, _ctx) => describeResource(kind, detail.SourceIdentifier),
     {
       initialState: {
         status: 'starting',
@@ -149,51 +181,17 @@ export const processAutoStartPrevent = async (
   }
 
   // Available: invoke StopDB* and wait until stopped.
-  if (isInstance) {
-    await context.step('stop-db-instance', async () => {
-      await rdsClient.send(
-        new StopDBInstanceCommand({
-          DBInstanceIdentifier: detail.SourceIdentifier,
-        }),
-      );
-    });
-  } else {
-    await context.step('stop-db-cluster', async () => {
-      await rdsClient.send(
-        new StopDBClusterCommand({
-          DBClusterIdentifier: detail.SourceIdentifier,
-        }),
-      );
-    });
-  }
+  await context.step(STOP_STEP_NAMES[kind], async () => {
+    await stopResource(kind, detail.SourceIdentifier);
+  });
 
   // waitStrategyUntilStopped ends only on `stopped` and throws on any non-transitional status.
+  // Tags are dropped here so they are not persisted again on every check.
   const stopped = await context.waitForCondition<WaitState>(
     'wait-until-stopped',
     async (_state, _ctx) => {
-      if (isInstance) {
-        const res = await rdsClient.send(
-          new DescribeDBInstancesCommand({
-            DBInstanceIdentifier: detail.SourceIdentifier,
-          }),
-        );
-        const db = res.DBInstances?.[0];
-        return {
-          status: db?.DBInstanceStatus ?? DB_STATUS.UNKNOWN,
-          identifier: db?.DBInstanceIdentifier ?? detail.SourceIdentifier,
-        };
-      }
-
-      const res = await rdsClient.send(
-        new DescribeDBClustersCommand({
-          DBClusterIdentifier: detail.SourceIdentifier,
-        }),
-      );
-      const cluster = res.DBClusters?.[0];
-      return {
-        status: cluster?.Status ?? DB_STATUS.UNKNOWN,
-        identifier: cluster?.DBClusterIdentifier ?? detail.SourceIdentifier,
-      };
+      const { status, identifier } = await describeResource(kind, detail.SourceIdentifier);
+      return { status, identifier };
     },
     {
       initialState: {

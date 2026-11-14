@@ -245,6 +245,32 @@ export const isDbClusterAutoStart = (
   detail.SourceType === DB_CLUSTER_AUTO_START_EVENT.sourceType &&
   detail.EventID === DB_CLUSTER_AUTO_START_EVENT.eventId;
 
+/** RDS resource type targeted by a supported auto-start event. */
+export type ResourceKind = 'instance' | 'cluster';
+
+/**
+ * Resolves which RDS resource type a supported auto-start event targets.
+ *
+ * @param detailType - EventBridge detail-type.
+ * @param detail - RDS event detail.
+ * @returns `instance` for RDS-EVENT-0154 on a DB instance; `cluster` for RDS-EVENT-0153 on a cluster.
+ * @throws When the detail-type, SourceType, and EventID do not form a supported auto-start event.
+ */
+export const resolveResourceKind = (
+  detailType: RdsAutoStartEvent['detail-type'],
+  detail: RdsAutoStartDetail,
+): ResourceKind => {
+  if (isDbInstanceAutoStart(detailType, detail)) {
+    return 'instance';
+  }
+  if (isDbClusterAutoStart(detailType, detail)) {
+    return 'cluster';
+  }
+  throw new Error(
+    `Unsupported event: detail-type=${detailType}, SourceType=${detail.SourceType}, EventID=${detail.EventID}`,
+  );
+};
+
 /**
  * Wait strategy while describing until the resource leaves transitional statuses.
  *

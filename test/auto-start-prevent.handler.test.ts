@@ -316,6 +316,24 @@ describe('processAutoStartPrevent', () => {
     expect(waitNames).toEqual(['wait-until-stable', 'wait-until-stopped']);
   });
 
+  it.each([
+    ['instance', instanceInput, () => rdsMock.on(DescribeDBInstancesCommand).resolves({ DBInstances: [] })],
+    ['cluster', clusterInput, () => rdsMock.on(DescribeDBClustersCommand).resolves({ DBClusters: [] })],
+  ])('returns tag mismatch no-op with unknown status when the %s describe is empty', async (_kind, input, mockEmptyDescribe) => {
+    mockEmptyDescribe();
+
+    const result = await processAutoStartPrevent(input, createFakeDurableContext());
+
+    expect(result).toEqual({
+      action: 'no-op',
+      reason: 'tag not matched or not found',
+      status: 'unknown',
+    });
+    expect(rdsMock).not.toHaveReceivedCommand(StopDBInstanceCommand);
+    expect(rdsMock).not.toHaveReceivedCommand(StopDBClusterCommand);
+    expect(postMessageMock).not.toHaveBeenCalled();
+  });
+
   it('throws for unsupported event combinations', async () => {
     const unsupported = {
       ...instanceInput,

@@ -11,6 +11,7 @@ import {
   normalizeInput,
   parseRdsSourceArn,
   RdsAutoStartDetail,
+  resolveResourceKind,
   tagMismatchNoOp,
   TRANSITIONAL_STATUSES,
   waitStrategyUntilStable,
@@ -122,6 +123,33 @@ describe('auto-start-prevent.predicates', () => {
           SourceType: 'DB_INSTANCE',
         }),
       ).toBe(false);
+    });
+  });
+
+  describe('resolveResourceKind', () => {
+    const detail = (EventID: RdsAutoStartDetail['EventID'], SourceType: RdsAutoStartDetail['SourceType']): RdsAutoStartDetail => ({
+      EventID,
+      SourceType,
+      SourceArn: 'arn:aws:rds:us-east-1:111122223333:db:r1',
+      SourceIdentifier: 'r1',
+    });
+
+    it.each([
+      ['RDS DB Instance Event', detail('RDS-EVENT-0154', 'DB_INSTANCE'), 'instance'],
+      ['RDS DB Cluster Event', detail('RDS-EVENT-0153', 'CLUSTER'), 'cluster'],
+    ] as const)('resolves %s to %s', (detailType, eventDetail, expected) => {
+      expect(resolveResourceKind(detailType, eventDetail)).toBe(expected);
+    });
+
+    it.each([
+      ['RDS DB Instance Event', detail('RDS-EVENT-0153', 'DB_INSTANCE')],
+      ['RDS DB Instance Event', detail('RDS-EVENT-0154', 'CLUSTER')],
+      ['RDS DB Cluster Event', detail('RDS-EVENT-0154', 'CLUSTER')],
+      ['RDS DB Cluster Event', detail('RDS-EVENT-0153', 'DB_INSTANCE')],
+    ] as const)('throws for unsupported %s %j', (detailType, eventDetail) => {
+      expect(() => resolveResourceKind(detailType, eventDetail)).toThrow(
+        `Unsupported event: detail-type=${detailType}, SourceType=${eventDetail.SourceType}, EventID=${eventDetail.EventID}`,
+      );
     });
   });
 
