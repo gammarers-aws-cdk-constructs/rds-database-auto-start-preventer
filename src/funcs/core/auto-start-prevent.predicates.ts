@@ -3,14 +3,20 @@
  * No AWS SDK, Durable context, env, or clock dependencies.
  */
 
+import {
+  DB_CLUSTER_AUTO_START_EVENT,
+  DB_INSTANCE_AUTO_START_EVENT,
+  RDS_EVENT_SOURCE,
+} from '../../settings/consts';
+
 /**
  * Detail payload of an RDS auto-start event from EventBridge.
  */
 export interface RdsAutoStartDetail {
   /** Event ID: RDS-EVENT-0154 (DB instance) or RDS-EVENT-0153 (DB cluster). */
-  EventID: 'RDS-EVENT-0154' | 'RDS-EVENT-0153';
+  EventID: typeof DB_INSTANCE_AUTO_START_EVENT.eventId | typeof DB_CLUSTER_AUTO_START_EVENT.eventId;
   /** Resource type that emitted the event. */
-  SourceType: 'DB_INSTANCE' | 'CLUSTER';
+  SourceType: typeof DB_INSTANCE_AUTO_START_EVENT.sourceType | typeof DB_CLUSTER_AUTO_START_EVENT.sourceType;
   /** ARN of the DB instance or cluster. */
   SourceArn: string;
   /** DB instance or cluster identifier from the event. */
@@ -21,8 +27,8 @@ export interface RdsAutoStartDetail {
  * RDS auto-start event as received from EventBridge.
  */
 export interface RdsAutoStartEvent {
-  'detail-type': 'RDS DB Instance Event' | 'RDS DB Cluster Event';
-  'source': 'aws.rds';
+  'detail-type': typeof DB_INSTANCE_AUTO_START_EVENT.detailType | typeof DB_CLUSTER_AUTO_START_EVENT.detailType;
+  'source': typeof RDS_EVENT_SOURCE;
   'detail': RdsAutoStartDetail;
 }
 
@@ -107,6 +113,13 @@ export interface StopWait {
 
 /** Result of a durable waitStrategy. */
 export type WaitStrategyResult = ContinueWait | StopWait;
+
+/** RDS statuses the handler branches on, plus the fallback when a describe returns no resource. */
+export const DB_STATUS = {
+  AVAILABLE: 'available',
+  STOPPED: 'stopped',
+  UNKNOWN: 'unknown',
+} as const;
 
 /** Minutes between describe calls while a status is transitional or stopping. */
 export const WAIT_INTERVAL_MINUTES = 5;
@@ -213,9 +226,9 @@ export const isDbInstanceAutoStart = (
   detailType: RdsAutoStartEvent['detail-type'],
   detail: RdsAutoStartDetail,
 ): boolean =>
-  detailType === 'RDS DB Instance Event' &&
-  detail.SourceType === 'DB_INSTANCE' &&
-  detail.EventID === 'RDS-EVENT-0154';
+  detailType === DB_INSTANCE_AUTO_START_EVENT.detailType &&
+  detail.SourceType === DB_INSTANCE_AUTO_START_EVENT.sourceType &&
+  detail.EventID === DB_INSTANCE_AUTO_START_EVENT.eventId;
 
 /**
  * Whether the EventBridge detail identifies a supported DB cluster auto-start event.
@@ -228,9 +241,9 @@ export const isDbClusterAutoStart = (
   detailType: RdsAutoStartEvent['detail-type'],
   detail: RdsAutoStartDetail,
 ): boolean =>
-  detailType === 'RDS DB Cluster Event' &&
-  detail.SourceType === 'CLUSTER' &&
-  detail.EventID === 'RDS-EVENT-0153';
+  detailType === DB_CLUSTER_AUTO_START_EVENT.detailType &&
+  detail.SourceType === DB_CLUSTER_AUTO_START_EVENT.sourceType &&
+  detail.EventID === DB_CLUSTER_AUTO_START_EVENT.eventId;
 
 /**
  * Wait strategy while describing until the resource leaves transitional statuses.
@@ -253,7 +266,7 @@ export const waitStrategyUntilStable = (state: WaitState): WaitStrategyResult =>
  * @throws When the status is neither stopped nor transitional.
  */
 export const waitStrategyUntilStopped = (state: WaitState): WaitStrategyResult => {
-  if (state.status === 'stopped') {
+  if (state.status === DB_STATUS.STOPPED) {
     return { shouldContinue: false };
   }
   if (isTransitionalStatus(state.status)) {
@@ -277,10 +290,10 @@ export type AfterTagMatchDecision =
  * @returns Stop when `available`; no-op when already `stopped`; otherwise error.
  */
 export const decideAfterTagMatch = (status: string): AfterTagMatchDecision => {
-  if (status === 'available') {
+  if (status === DB_STATUS.AVAILABLE) {
     return { kind: 'stop' };
   }
-  if (status === 'stopped') {
+  if (status === DB_STATUS.STOPPED) {
     return {
       kind: 'no-op',
       result: {

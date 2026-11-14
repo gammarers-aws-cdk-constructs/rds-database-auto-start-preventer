@@ -12,6 +12,7 @@ import { StrictEnvResolver, StrictEnvType } from 'strict-env-resolver';
 import {
   buildSlackStopNotification,
   buildStoppedResult,
+  DB_STATUS,
   decideAfterTagMatch,
   isDbClusterAutoStart,
   isDbInstanceAutoStart,
@@ -106,7 +107,7 @@ export const processAutoStartPrevent = async (
         );
         const db = res.DBInstances?.[0];
         return {
-          status: db?.DBInstanceStatus ?? 'unknown',
+          status: db?.DBInstanceStatus ?? DB_STATUS.UNKNOWN,
           identifier: db?.DBInstanceIdentifier ?? detail.SourceIdentifier,
           tags: (db?.TagList ?? []) as Tag[],
         };
@@ -119,7 +120,7 @@ export const processAutoStartPrevent = async (
       );
       const cluster = res.DBClusters?.[0];
       return {
-        status: cluster?.Status ?? 'unknown',
+        status: cluster?.Status ?? DB_STATUS.UNKNOWN,
         identifier: cluster?.DBClusterIdentifier ?? detail.SourceIdentifier,
         tags: (cluster?.TagList ?? []) as Tag[],
       };
@@ -178,7 +179,7 @@ export const processAutoStartPrevent = async (
         );
         const db = res.DBInstances?.[0];
         return {
-          status: db?.DBInstanceStatus ?? 'unknown',
+          status: db?.DBInstanceStatus ?? DB_STATUS.UNKNOWN,
           identifier: db?.DBInstanceIdentifier ?? detail.SourceIdentifier,
         };
       }
@@ -190,7 +191,7 @@ export const processAutoStartPrevent = async (
       );
       const cluster = res.DBClusters?.[0];
       return {
-        status: cluster?.Status ?? 'unknown',
+        status: cluster?.Status ?? DB_STATUS.UNKNOWN,
         identifier: cluster?.DBClusterIdentifier ?? detail.SourceIdentifier,
       };
     },

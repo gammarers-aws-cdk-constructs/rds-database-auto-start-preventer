@@ -15,6 +15,14 @@ import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import { AutoStartPreventFunction } from './funcs/auto-start-prevent-function';
+import {
+  DB_CLUSTER_AUTO_START_EVENT,
+  DB_INSTANCE_AUTO_START_EVENT,
+  RDS_EVENT_SOURCE,
+} from './settings/consts';
+
+/** EventBridge retries when delivering an auto-start event to the Lambda alias. */
+const EVENT_TARGET_RETRY_ATTEMPTS = 2;
 
 /**
  * Tag-based criteria evaluated in the Lambda handler (not on the EventBridge rule).
@@ -222,15 +230,15 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       description: 'rds db instance auto start event catch rule.',
       enabled: enableRule,
       eventPattern: {
-        source: ['aws.rds'],
-        detailType: ['RDS DB Instance Event'],
+        source: [RDS_EVENT_SOURCE],
+        detailType: [DB_INSTANCE_AUTO_START_EVENT.detailType],
         detail: {
-          EventID: ['RDS-EVENT-0154'],
+          EventID: [DB_INSTANCE_AUTO_START_EVENT.eventId],
         },
       },
       targets: [
         new LambdaFunction(autoStartPreventFunctionAlias, {
-          retryAttempts: 2,
+          retryAttempts: EVENT_TARGET_RETRY_ATTEMPTS,
           event: lambdaInput,
         }),
       ],
@@ -241,15 +249,15 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       description: 'db cluster auto start event catch rule',
       enabled: enableRule,
       eventPattern: {
-        source: ['aws.rds'],
-        detailType: ['RDS DB Cluster Event'],
+        source: [RDS_EVENT_SOURCE],
+        detailType: [DB_CLUSTER_AUTO_START_EVENT.detailType],
         detail: {
-          EventID: ['RDS-EVENT-0153'],
+          EventID: [DB_CLUSTER_AUTO_START_EVENT.eventId],
         },
       },
       targets: [
         new LambdaFunction(autoStartPreventFunctionAlias, {
-          retryAttempts: 2,
+          retryAttempts: EVENT_TARGET_RETRY_ATTEMPTS,
           event: lambdaInput,
         }),
       ],
