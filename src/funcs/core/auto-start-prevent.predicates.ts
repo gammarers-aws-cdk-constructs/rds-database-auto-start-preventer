@@ -148,8 +148,8 @@ export const isTransitionalStatus = (status: string): boolean =>
 /**
  * Type guard for Slack credentials returned by `secretFetcher.getSecretValue`.
  *
- * aws-lambda-secret-fetcher ^0.7 parses SecretString with quiet-json-parser and
- * falls back to the raw string on invalid JSON, so callers must validate shape.
+ * aws-lambda-secret-fetcher ^0.10 parses a string SecretString as JSON (already parsed values are
+ * returned as-is) and falls back to the raw string on invalid JSON, so callers must validate shape.
  *
  * @param value - Value returned from the secret fetcher.
  * @returns Whether value is a SlackSecret with non-empty token and channel.

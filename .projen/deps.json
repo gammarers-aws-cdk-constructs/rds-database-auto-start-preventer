@@ -56,7 +56,7 @@
     },
     {
       "name": "aws-lambda-secret-fetcher",
-      "version": "^0.8.0",
+      "version": "^0.10.0",
       "type": "build"
     },
     {

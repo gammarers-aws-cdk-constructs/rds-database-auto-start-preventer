@@ -20,7 +20,7 @@ const project = new ProjenCdkConstructLibrary({
     '@aws-sdk/client-rds@^3.1063.0',
     '@slack/web-api@^6.13.0',
     '@types/aws-lambda@^8.10.162',
-    'aws-lambda-secret-fetcher@^0.8.0',
+    'aws-lambda-secret-fetcher@^0.10.0',
     'aws-sdk-client-mock@^4.1.0',
     'aws-sdk-client-mock-jest@^4.1.0',
     'strict-env-resolver@^0.9.0',
