@@ -40,6 +40,7 @@ const createFakeDurableContext = (): DurableContext => {
     wait: jest.fn(async () => undefined),
     waitForCondition: jest.fn(
       async <T>(
+        _name: string,
         checkFn: (state: T, ctx: DurableContext) => Promise<T>,
         config: {
           initialState: T;
@@ -278,6 +279,36 @@ describe('processAutoStartPrevent', () => {
     const stepResults = await Promise.all(stepMock.mock.results.map((r) => r.value));
     expect(stepResults).toEqual([undefined, undefined]);
     expect(getSecretValueMock).toHaveBeenCalledWith('example/slack/secret');
+  });
+
+  it('names the durable wait operations', async () => {
+    rdsMock
+      .on(DescribeDBInstancesCommand)
+      .resolvesOnce({
+        DBInstances: [
+          {
+            DBInstanceIdentifier: 'demo-db',
+            DBInstanceStatus: 'available',
+            TagList: [{ Key: 'AutoStartPrevent', Value: 'YES' }],
+          },
+        ],
+      })
+      .resolvesOnce({
+        DBInstances: [
+          {
+            DBInstanceIdentifier: 'demo-db',
+            DBInstanceStatus: 'stopped',
+          },
+        ],
+      });
+    rdsMock.on(StopDBInstanceCommand).resolves({});
+    const context = createFakeDurableContext();
+
+    await processAutoStartPrevent(instanceInput, context);
+
+    expect(context.wait).toHaveBeenCalledWith('initial-delay', { minutes: 1 });
+    const waitNames = (context.waitForCondition as unknown as jest.Mock).mock.calls.map(([name]) => name);
+    expect(waitNames).toEqual(['wait-until-stable', 'wait-until-stopped']);
   });
 
   it('throws for unsupported event combinations', async () => {

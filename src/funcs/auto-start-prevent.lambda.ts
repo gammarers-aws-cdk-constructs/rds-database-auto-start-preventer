@@ -83,10 +83,11 @@ export const processAutoStartPrevent = async (
   }
 
   // Initial delay before the first describe (allows RDS to report a stable status).
-  await context.wait({ minutes: 1 });
+  await context.wait('initial-delay', { minutes: 1 });
 
   // Wait until the resource is no longer in a transitional status; capture status and TagList.
   const firstDescribe = await context.waitForCondition<WaitState>(
+    'wait-until-stable',
     async (_state, _ctx) => {
       if (isInstance) {
         const res = await rdsClient.send(
@@ -158,6 +159,7 @@ export const processAutoStartPrevent = async (
 
   // waitStrategyUntilStopped ends only on `stopped` and throws on any non-transitional status.
   const stopped = await context.waitForCondition<WaitState>(
+    'wait-until-stopped',
     async (_state, _ctx) => {
       if (isInstance) {
         const res = await rdsClient.send(
