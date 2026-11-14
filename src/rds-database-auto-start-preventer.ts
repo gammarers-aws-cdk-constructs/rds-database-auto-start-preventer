@@ -126,7 +126,8 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       ? undefined
       : Secret.fromSecretNameV2(this, 'SlackSecret', slackSecretName);
 
-    // Durable Functions-based Running Scheduler (previous Step Functions logic implemented in Lambda).
+    // Durable Lambda that waits for the auto-started resource to settle, stops it when tags match,
+    // and posts to Slack after the stop when a Slack secret is configured.
     // Durable Execution requires Node.js 22+.
     const autoStartPreventFunction = new AutoStartPreventFunction(this, 'AutoStartPreventFunction', {
       description: 'A function to prevent the RDS Database or Cluster from starting automatically.',
@@ -225,9 +226,9 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       },
     });
 
-    // 👇 EventBridge by RDS DB Instance auto start event
+    // EventBridge rule for DB instance auto-start events (RDS-EVENT-0154).
     new Rule(this, 'DBInstanceEvent', {
-      description: 'rds db instance auto start event catch rule.',
+      description: 'Catches RDS DB instance auto-start events (RDS-EVENT-0154).',
       enabled: enableRule,
       eventPattern: {
         source: [RDS_EVENT_SOURCE],
@@ -244,9 +245,9 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       ],
     });
 
-    // 👇 EventBridge by RDS DB Cluster auto start event
+    // EventBridge rule for DB cluster auto-start events (RDS-EVENT-0153).
     new Rule(this, 'DBClusterEvent', {
-      description: 'db cluster auto start event catch rule',
+      description: 'Catches RDS DB cluster auto-start events (RDS-EVENT-0153).',
       enabled: enableRule,
       eventPattern: {
         source: [RDS_EVENT_SOURCE],

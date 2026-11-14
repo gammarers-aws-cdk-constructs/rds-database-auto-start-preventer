@@ -384,7 +384,7 @@ exports[`Stack Default should match snapshot 1`] = `
     },
     "RDSDatabaseAutoStartPreventerDBClusterEvent1997DEF3": {
       "Properties": {
-        "Description": "db cluster auto start event catch rule",
+        "Description": "Catches RDS DB cluster auto-start events (RDS-EVENT-0153).",
         "EventPattern": {
           "detail": {
             "EventID": [
@@ -437,7 +437,7 @@ exports[`Stack Default should match snapshot 1`] = `
     },
     "RDSDatabaseAutoStartPreventerDBInstanceEvent92CCC656": {
       "Properties": {
-        "Description": "rds db instance auto start event catch rule.",
+        "Description": "Catches RDS DB instance auto-start events (RDS-EVENT-0154).",
         "EventPattern": {
           "detail": {
             "EventID": [
@@ -903,7 +903,7 @@ exports[`Stack Disable should match snapshot 1`] = `
     },
     "RDSDatabaseAutoStartPreventerDBClusterEvent1997DEF3": {
       "Properties": {
-        "Description": "db cluster auto start event catch rule",
+        "Description": "Catches RDS DB cluster auto-start events (RDS-EVENT-0153).",
         "EventPattern": {
           "detail": {
             "EventID": [
@@ -956,7 +956,7 @@ exports[`Stack Disable should match snapshot 1`] = `
     },
     "RDSDatabaseAutoStartPreventerDBInstanceEvent92CCC656": {
       "Properties": {
-        "Description": "rds db instance auto start event catch rule.",
+        "Description": "Catches RDS DB instance auto-start events (RDS-EVENT-0154).",
         "EventPattern": {
           "detail": {
             "EventID": [
