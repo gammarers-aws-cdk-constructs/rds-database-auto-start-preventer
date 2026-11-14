@@ -271,4 +271,5 @@ const processAutoStartPreventWithFailureLog = async (
   }
 };
 
+/** Lambda entry point: {@link processAutoStartPrevent} wrapped with the failure log and durable execution. */
 export const handler = withDurableExecution(processAutoStartPreventWithFailureLog);

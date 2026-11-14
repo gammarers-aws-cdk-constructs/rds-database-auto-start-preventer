@@ -27,6 +27,7 @@ CDK construct library that stops RDS DB instances and clusters after they are au
 4. If the resource is `available` and tags match, the handler calls StopDB* and waits until `stopped` (again using up to 5-minute intervals while transitional).
 5. If the resource is already `stopped` (for example, stopped by another process), the handler exits without calling StopDB* and without posting to Slack.
 6. When `slackSecretName` is set, Slack is notified only when StopDB* was invoked by this invocation and the resource reached `stopped`. When it is omitted, the handler does not post to Slack.
+7. If the execution fails (invalid input or Slack secret, unexpected RDS status, stop not reaching `stopped`, or Slack post failure), the handler logs `AutoStartPreventFailed` with the DB identifier and error message, and the durable execution ends as failed. With `failureDetection.enabled`, this log raises a CloudWatch alarm.
 
 Timing defaults (not configurable via props today):
 

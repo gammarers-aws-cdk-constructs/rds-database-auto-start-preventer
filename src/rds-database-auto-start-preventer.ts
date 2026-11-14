@@ -129,11 +129,13 @@ const validateProps = (props: RDSDatabaseAutoStartPreventerProps): void => {
  * using `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters`.
  * IAM grants account/region-scoped describe on `db` / `cluster` ARNs, and stop only
  * when `aws:ResourceTag` matches {@link TargetResource} (no Resource Groups Tagging API).
+ * CloudWatch failure alarms are created only when
+ * {@link RDSDatabaseAutoStartPreventerProps.failureDetection} is enabled.
  */
 export class RDSDatabaseAutoStartPreventer extends Construct {
 
   /**
-   * Creates the Durable Lambda, EventBridge rules, and IAM policies.
+   * Creates the Durable Lambda, EventBridge rules, IAM policies, and optional failure alarms.
    *
    * The Lambda receives `{ event, params }` where `params` carries `tagKey` and `tagValues`
    * from {@link RDSDatabaseAutoStartPreventerProps.targetResource}. Tag filters are passed

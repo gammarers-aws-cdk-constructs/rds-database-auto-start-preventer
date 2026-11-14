@@ -10,6 +10,8 @@ EventBridge rules match all auto-start events; tag filtering runs in the handler
 using `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters`.
 IAM grants account/region-scoped describe on `db` / `cluster` ARNs, and stop only
 when `aws:ResourceTag` matches {@link TargetResource} (no Resource Groups Tagging API).
+CloudWatch failure alarms are created only when
+{@link RDSDatabaseAutoStartPreventerProps.failureDetection} is enabled.
 
 #### Initializers <a name="Initializers" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer.Initializer"></a>
 
@@ -23,7 +25,7 @@ new RDSDatabaseAutoStartPreventer(scope: Construct, id: string, props: RDSDataba
 | --- | --- | --- |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer.Initializer.parameter.scope">scope</a></code> | <code>constructs.Construct</code> | - Parent construct. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer.Initializer.parameter.id">id</a></code> | <code>string</code> | - Construct id. |
-| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer.Initializer.parameter.props">props</a></code> | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps">RDSDatabaseAutoStartPreventerProps</a></code> | - Target resource (tag key/values), enable rule flag, and secrets. |
+| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer.Initializer.parameter.props">props</a></code> | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps">RDSDatabaseAutoStartPreventerProps</a></code> | - Target resource (tag key/values), enable rule flag, secrets, and failure detection. |
 
 ---
 
@@ -47,7 +49,7 @@ Construct id.
 
 - *Type:* <a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps">RDSDatabaseAutoStartPreventerProps</a>
 
-Target resource (tag key/values), enable rule flag, and secrets.
+Target resource (tag key/values), enable rule flag, secrets, and failure detection.
 
 ---
 
