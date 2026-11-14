@@ -25,7 +25,7 @@ new RDSDatabaseAutoStartPreventer(scope: Construct, id: string, props: RDSDataba
 | --- | --- | --- |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer.Initializer.parameter.scope">scope</a></code> | <code>constructs.Construct</code> | - Parent construct. |
 | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer.Initializer.parameter.id">id</a></code> | <code>string</code> | - Construct id. |
-| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer.Initializer.parameter.props">props</a></code> | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps">RDSDatabaseAutoStartPreventerProps</a></code> | - Target resource (tag key/values), enable rule flag, secrets, and failure detection. |
+| <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer.Initializer.parameter.props">props</a></code> | <code><a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps">RDSDatabaseAutoStartPreventerProps</a></code> | - Target resource (tag key/values), enable rule flag, and secrets. |
 
 ---
 
@@ -49,7 +49,7 @@ Construct id.
 
 - *Type:* <a href="#rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventerProps">RDSDatabaseAutoStartPreventerProps</a>
 
-Target resource (tag key/values), enable rule flag, secrets, and failure detection.
+Target resource (tag key/values), enable rule flag, and secrets.
 
 ---
 
