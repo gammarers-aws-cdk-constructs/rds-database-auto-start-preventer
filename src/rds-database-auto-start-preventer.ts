@@ -1,9 +1,17 @@
 import { ArnFormat, Duration, RemovalPolicy, Stack, Token } from 'aws-cdk-lib';
-import * as events from 'aws-cdk-lib/aws-events';
-import * as targets from 'aws-cdk-lib/aws-events-targets';
-import * as iam from 'aws-cdk-lib/aws-iam';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as logs from 'aws-cdk-lib/aws-logs';
+import { EventField, Rule, RuleTargetInput } from 'aws-cdk-lib/aws-events';
+import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
+import { Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import {
+  ApplicationLogLevel,
+  Architecture,
+  LoggingFormat,
+  ParamsAndSecretsLayerVersion,
+  ParamsAndSecretsLogLevel,
+  ParamsAndSecretsVersions,
+  SystemLogLevel,
+} from 'aws-cdk-lib/aws-lambda';
+import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import { AutoStartPreventFunction } from './funcs/auto-start-prevent-function';
@@ -114,7 +122,7 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
     // Durable Execution requires Node.js 22+.
     const autoStartPreventFunction = new AutoStartPreventFunction(this, 'AutoStartPreventFunction', {
       description: 'A function to prevent the RDS Database or Cluster from starting automatically.',
-      architecture: lambda.Architecture.ARM_64,
+      architecture: Architecture.ARM_64,
       timeout: Duration.minutes(15),
       memorySize: 512,
       retryAttempts: 2,
@@ -130,26 +138,26 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       // Required by aws-lambda-secret-fetcher (^0.6+) when Slack is configured.
       paramsAndSecrets: slackSecret === undefined
         ? undefined
-        : lambda.ParamsAndSecretsLayerVersion.fromVersion(lambda.ParamsAndSecretsVersions.V1_0_103, {
+        : ParamsAndSecretsLayerVersion.fromVersion(ParamsAndSecretsVersions.V1_0_103, {
           cacheSize: 500,
-          logLevel: lambda.ParamsAndSecretsLogLevel.INFO,
+          logLevel: ParamsAndSecretsLogLevel.INFO,
         }),
-      role: new iam.Role(this, 'AutoStartPreventFunctionRole', {
+      role: new Role(this, 'AutoStartPreventFunctionRole', {
         description: 'A role to control the RDS Database or Cluster.',
-        assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
         managedPolicies: [
-          iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
-          iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicDurableExecutionRolePolicy'),
+          ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+          ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicDurableExecutionRolePolicy'),
         ],
       }),
-      logGroup: new logs.LogGroup(this, 'AutoStartPreventFunctionLogGroup', {
-        retention: logs.RetentionDays.THREE_MONTHS,
+      logGroup: new LogGroup(this, 'AutoStartPreventFunctionLogGroup', {
+        retention: RetentionDays.THREE_MONTHS,
         // Delete on failed create/rollback; retain after successful create (stack delete/replace).
         removalPolicy: RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
       }),
-      loggingFormat: lambda.LoggingFormat.JSON,
-      systemLogLevelV2: lambda.SystemLogLevel.INFO,
-      applicationLogLevelV2: lambda.ApplicationLogLevel.INFO,
+      loggingFormat: LoggingFormat.JSON,
+      systemLogLevelV2: SystemLogLevel.INFO,
+      applicationLogLevelV2: ApplicationLogLevel.INFO,
     });
     const rdsDbAndClusterArns = [
       Stack.of(this).formatArn({
@@ -166,9 +174,9 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       }),
     ];
     // Describe stays without ResourceTag so TagList can be read for non-matching resources.
-    autoStartPreventFunction.addToRolePolicy(new iam.PolicyStatement({
+    autoStartPreventFunction.addToRolePolicy(new PolicyStatement({
       sid: 'RdsDescribeForTagFilter',
-      effect: iam.Effect.ALLOW,
+      effect: Effect.ALLOW,
       actions: [
         'rds:DescribeDBInstances',
         'rds:DescribeDBClusters',
@@ -176,9 +184,9 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       resources: rdsDbAndClusterArns,
     }));
     // Stop is limited to db/cluster ARNs whose tag matches targetResource.
-    autoStartPreventFunction.addToRolePolicy(new iam.PolicyStatement({
+    autoStartPreventFunction.addToRolePolicy(new PolicyStatement({
       sid: 'RdsStopTaggedTargets',
-      effect: iam.Effect.ALLOW,
+      effect: Effect.ALLOW,
       actions: [
         'rds:StopDBInstance',
         'rds:StopDBCluster',
@@ -200,8 +208,8 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
     const enableRule = props.enableRule !== false;
 
     // Pass the EventBridge event and tag filter params to the Lambda target input.
-    const lambdaInput = events.RuleTargetInput.fromObject({
-      event: events.EventField.fromPath('$'),
+    const lambdaInput = RuleTargetInput.fromObject({
+      event: EventField.fromPath('$'),
       params: {
         tagKey: props.targetResource.tagKey,
         tagValues: props.targetResource.tagValues,
@@ -209,7 +217,7 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
     });
 
     // 👇 EventBridge by RDS DB Instance auto start event
-    new events.Rule(this, 'DBInstanceEvent', {
+    new Rule(this, 'DBInstanceEvent', {
       description: 'rds db instance auto start event catch rule.',
       enabled: enableRule,
       eventPattern: {
@@ -220,7 +228,7 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
         },
       },
       targets: [
-        new targets.LambdaFunction(autoStartPreventFunctionAlias, {
+        new LambdaFunction(autoStartPreventFunctionAlias, {
           retryAttempts: 2,
           event: lambdaInput,
         }),
@@ -228,7 +236,7 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
     });
 
     // 👇 EventBridge by RDS DB Cluster auto start event
-    new events.Rule(this, 'DBClusterEvent', {
+    new Rule(this, 'DBClusterEvent', {
       description: 'db cluster auto start event catch rule',
       enabled: enableRule,
       eventPattern: {
@@ -239,7 +247,7 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
         },
       },
       targets: [
-        new targets.LambdaFunction(autoStartPreventFunctionAlias, {
+        new LambdaFunction(autoStartPreventFunctionAlias, {
           retryAttempts: 2,
           event: lambdaInput,
         }),
