@@ -18,6 +18,7 @@ import {
   StopDBClusterCommand,
   StopDBInstanceCommand,
 } from '@aws-sdk/client-rds';
+import { WebClient } from '@slack/web-api';
 import { secretFetcher } from 'aws-lambda-secret-fetcher';
 import { mockClient } from 'aws-sdk-client-mock';
 import 'aws-sdk-client-mock-jest';
@@ -49,7 +50,7 @@ const createFakeDurableContext = (): DurableContext => {
       ): Promise<T> => {
         let state = config.initialState;
         for (let i = 0; i < 20; i += 1) {
-          state = await checkFn(state, context as DurableContext);
+          state = await checkFn(state, context as unknown as DurableContext);
           const strategy = config.waitStrategy(state);
           if (!strategy.shouldContinue) {
             return state;
@@ -197,6 +198,10 @@ describe('processAutoStartPrevent', () => {
     });
     expect(rdsMock).toHaveReceivedCommandWith(StopDBInstanceCommand, {
       DBInstanceIdentifier: 'demo-db',
+    });
+    expect(WebClient).toHaveBeenCalledWith('xoxb-test-token', {
+      timeout: 30_000,
+      retryConfig: { retries: 2 },
     });
     expect(postMessageMock).toHaveBeenCalledTimes(1);
     expect(postMessageMock).toHaveBeenCalledWith(

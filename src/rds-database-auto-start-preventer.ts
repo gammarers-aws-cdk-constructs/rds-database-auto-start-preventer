@@ -123,7 +123,8 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
     const autoStartPreventFunction = new AutoStartPreventFunction(this, 'AutoStartPreventFunction', {
       description: 'A function to prevent the RDS Database or Cluster from starting automatically.',
       architecture: Architecture.ARM_64,
-      timeout: Duration.minutes(15),
+      // Durable waits suspend the invocation, so this only covers the API calls between waits.
+      timeout: Duration.minutes(3),
       memorySize: 512,
       retryAttempts: 2,
       durableConfig: {

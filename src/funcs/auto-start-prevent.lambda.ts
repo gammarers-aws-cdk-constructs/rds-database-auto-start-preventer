@@ -33,6 +33,15 @@ import {
 const rdsClient = new RDSClient({});
 
 /**
+ * Per-request timeout for Slack API calls.
+ * The WebClient default is no timeout with ~30 minutes of retries, which exceeds the Lambda invocation timeout.
+ */
+const SLACK_REQUEST_TIMEOUT_MS = 30_000;
+
+/** Slack retries after the first attempt, kept within the Lambda invocation timeout. */
+const SLACK_RETRIES = 2;
+
+/**
  * Durable Lambda handler for RDS auto-start prevention.
  *
  * Workflow:
@@ -198,7 +207,10 @@ export const processAutoStartPrevent = async (
 
   if (slackSecret !== undefined) {
     const channel = slackSecret.channel;
-    const client = new WebClient(slackSecret.token);
+    const client = new WebClient(slackSecret.token, {
+      timeout: SLACK_REQUEST_TIMEOUT_MS,
+      retryConfig: { retries: SLACK_RETRIES },
+    });
     // Return nothing so the Slack API response is not persisted in the durable execution history.
     await context.step('post-slack-messages', async () => {
       await client.chat.postMessage(

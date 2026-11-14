@@ -33,7 +33,7 @@ Timing defaults (not configurable via props today):
 |---------|-------|
 | Initial wait before the first describe | 1 minute |
 | Wait between describes while status is transitional / stopping | up to 5 minutes |
-| Lambda invocation `timeout` | 15 minutes |
+| Lambda invocation `timeout` | 3 minutes |
 | Durable `executionTimeout` | 2 hours |
 | Durable history `retentionPeriod` | 1 day |
 

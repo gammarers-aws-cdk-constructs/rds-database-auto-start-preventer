@@ -20,7 +20,7 @@ describe('Stack', () => {
       template.hasResourceProperties('AWS::Lambda::Function', Match.objectLike({
         Description: 'A function to prevent the RDS Database or Cluster from starting automatically.',
         Architectures: ['arm64'],
-        Timeout: 900,
+        Timeout: 180,
         MemorySize: 512,
         Environment: Match.objectLike({
           Variables: Match.objectLike({
