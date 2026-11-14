@@ -196,11 +196,11 @@ describe('auto-start-prevent.predicates', () => {
 
   describe('decideAfterTagMatch', () => {
     it('requests stop when available', () => {
-      expect(decideAfterTagMatch('available')).toEqual({ kind: 'stop' });
+      expect(decideAfterTagMatch({ status: 'available', identifier: 'db' })).toEqual({ kind: 'stop' });
     });
 
     it('returns already-stopped no-op', () => {
-      expect(decideAfterTagMatch('stopped')).toEqual({
+      expect(decideAfterTagMatch({ status: 'stopped', identifier: 'db' })).toEqual({
         kind: 'no-op',
         result: {
           action: 'no-op',
@@ -213,9 +213,9 @@ describe('auto-start-prevent.predicates', () => {
     it.each(['available-read-replica', 'storage-full', 'unknown'])(
       'errors for unexpected %s',
       (status) => {
-        expect(decideAfterTagMatch(status)).toEqual({
+        expect(decideAfterTagMatch({ status, identifier: 'demo-db' })).toEqual({
           kind: 'error',
-          message: `DB status is not stopped after processing: ${status}`,
+          message: `Cannot stop DB demo-db: status is ${status}, expected available or stopped.`,
         });
       },
     );

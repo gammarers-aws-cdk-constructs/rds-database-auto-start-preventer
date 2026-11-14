@@ -172,7 +172,7 @@ export const processAutoStartPrevent = async (
   }
 
   // Already stopped without calling StopDB* (e.g. stopped by another process) — no Slack notification.
-  const afterTagMatch = decideAfterTagMatch(firstDescribe.status);
+  const afterTagMatch = decideAfterTagMatch(firstDescribe);
   if (afterTagMatch.kind === 'no-op') {
     return afterTagMatch.result;
   }

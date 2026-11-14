@@ -312,10 +312,12 @@ export type AfterTagMatchDecision =
 /**
  * Decides the next action when tags matched and StopDB* has not been called yet.
  *
- * @param status - Status from the first describe after leaving transitional states.
- * @returns Stop when `available`; no-op when already `stopped`; otherwise error.
+ * @param state - Status and identifier from the first describe after leaving transitional states.
+ * @returns Stop when `available`; no-op when already `stopped`; otherwise an error naming the
+ * identifier and status, because StopDB* cannot be called from any other status.
  */
-export const decideAfterTagMatch = (status: string): AfterTagMatchDecision => {
+export const decideAfterTagMatch = (state: WaitState): AfterTagMatchDecision => {
+  const { status, identifier } = state;
   if (status === DB_STATUS.AVAILABLE) {
     return { kind: 'stop' };
   }
@@ -331,7 +333,7 @@ export const decideAfterTagMatch = (status: string): AfterTagMatchDecision => {
   }
   return {
     kind: 'error',
-    message: `DB status is not stopped after processing: ${status}`,
+    message: `Cannot stop DB ${identifier}: status is ${status}, expected ${DB_STATUS.AVAILABLE} or ${DB_STATUS.STOPPED}.`,
   };
 };
 

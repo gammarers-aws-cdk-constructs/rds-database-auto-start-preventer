@@ -364,7 +364,7 @@ describe('processAutoStartPrevent', () => {
 
     await expect(
       processAutoStartPrevent(instanceInput, createFakeDurableContext()),
-    ).rejects.toThrow('DB status is not stopped after processing: storage-full');
+    ).rejects.toThrow('Cannot stop DB demo-db: status is storage-full, expected available or stopped.');
     expect(postMessageMock).not.toHaveBeenCalled();
   });
 
