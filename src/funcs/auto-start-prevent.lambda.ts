@@ -128,83 +128,69 @@ export const processAutoStartPrevent = async (
     return tagMismatchNoOp(firstDescribe.status);
   }
 
-  let didStop = false;
-  let finalStatus = firstDescribe.status;
-
-  // When available, invoke StopDB* and wait until stopped.
+  // Already stopped without calling StopDB* (e.g. stopped by another process) — no Slack notification.
   const afterTagMatch = decideAfterTagMatch(firstDescribe.status);
-  if (afterTagMatch.kind === 'stop') {
-    if (isInstance) {
-      await context.step('stop-db-instance', async () => {
-        await rdsClient.send(
-          new StopDBInstanceCommand({
+  if (afterTagMatch.kind === 'no-op') {
+    return afterTagMatch.result;
+  }
+  if (afterTagMatch.kind === 'error') {
+    throw new Error(afterTagMatch.message);
+  }
+
+  // Available: invoke StopDB* and wait until stopped.
+  if (isInstance) {
+    await context.step('stop-db-instance', async () => {
+      await rdsClient.send(
+        new StopDBInstanceCommand({
+          DBInstanceIdentifier: detail.SourceIdentifier,
+        }),
+      );
+    });
+  } else {
+    await context.step('stop-db-cluster', async () => {
+      await rdsClient.send(
+        new StopDBClusterCommand({
+          DBClusterIdentifier: detail.SourceIdentifier,
+        }),
+      );
+    });
+  }
+
+  // waitStrategyUntilStopped ends only on `stopped` and throws on any non-transitional status.
+  const stopped = await context.waitForCondition<WaitState>(
+    async (_state, _ctx) => {
+      if (isInstance) {
+        const res = await rdsClient.send(
+          new DescribeDBInstancesCommand({
             DBInstanceIdentifier: detail.SourceIdentifier,
           }),
         );
-      });
-    } else {
-      await context.step('stop-db-cluster', async () => {
-        await rdsClient.send(
-          new StopDBClusterCommand({
-            DBClusterIdentifier: detail.SourceIdentifier,
-          }),
-        );
-      });
-    }
-
-    const stopped = await context.waitForCondition<WaitState>(
-      async (_state, _ctx) => {
-        if (isInstance) {
-          const res = await rdsClient.send(
-            new DescribeDBInstancesCommand({
-              DBInstanceIdentifier: detail.SourceIdentifier,
-            }),
-          );
-          const db = res.DBInstances?.[0];
-          return {
-            status: db?.DBInstanceStatus ?? 'unknown',
-            identifier: db?.DBInstanceIdentifier ?? detail.SourceIdentifier,
-          };
-        }
-
-        const res = await rdsClient.send(
-          new DescribeDBClustersCommand({
-            DBClusterIdentifier: detail.SourceIdentifier,
-          }),
-        );
-        const cluster = res.DBClusters?.[0];
+        const db = res.DBInstances?.[0];
         return {
-          status: cluster?.Status ?? 'unknown',
-          identifier: cluster?.DBClusterIdentifier ?? detail.SourceIdentifier,
+          status: db?.DBInstanceStatus ?? 'unknown',
+          identifier: db?.DBInstanceIdentifier ?? detail.SourceIdentifier,
         };
+      }
+
+      const res = await rdsClient.send(
+        new DescribeDBClustersCommand({
+          DBClusterIdentifier: detail.SourceIdentifier,
+        }),
+      );
+      const cluster = res.DBClusters?.[0];
+      return {
+        status: cluster?.Status ?? 'unknown',
+        identifier: cluster?.DBClusterIdentifier ?? detail.SourceIdentifier,
+      };
+    },
+    {
+      initialState: {
+        status: firstDescribe.status,
+        identifier: firstDescribe.identifier,
       },
-      {
-        initialState: {
-          status: firstDescribe.status,
-          identifier: firstDescribe.identifier,
-        },
-        waitStrategy: waitStrategyUntilStopped,
-      },
-    );
-
-    didStop = true;
-    finalStatus = stopped.status;
-  }
-
-  // Already stopped without calling StopDB* (e.g. stopped by another process) — no Slack notification.
-  if (!didStop) {
-    if (afterTagMatch.kind === 'no-op') {
-      return afterTagMatch.result;
-    }
-    if (afterTagMatch.kind === 'error') {
-      throw new Error(afterTagMatch.message);
-    }
-  }
-
-  // Fail when StopDB* was called but the resource did not reach stopped.
-  if (finalStatus !== 'stopped') {
-    throw new Error(`DB status is not stopped after processing: ${finalStatus}`);
-  }
+      waitStrategy: waitStrategyUntilStopped,
+    },
+  );
 
   const { region, account } = parseRdsSourceArn(detail.SourceArn);
 
@@ -226,7 +212,7 @@ export const processAutoStartPrevent = async (
   }
 
   return buildStoppedResult({
-    finalStatus,
+    finalStatus: stopped.status,
     account,
     region,
     identifier: detail.SourceIdentifier,
