@@ -10,7 +10,7 @@ jest.mock('aws-lambda-secret-fetcher', () => ({
   },
 }));
 
-import { DurableContext } from '@aws/durable-execution-sdk-js';
+import { LocalDurableTestRunner } from '@aws/durable-execution-sdk-js-testing';
 import {
   DescribeDBClustersCommand,
   DescribeDBInstancesCommand,
@@ -18,48 +18,17 @@ import {
   StopDBClusterCommand,
   StopDBInstanceCommand,
 } from '@aws-sdk/client-rds';
+import { WebClient } from '@slack/web-api';
 import { secretFetcher } from 'aws-lambda-secret-fetcher';
 import { mockClient } from 'aws-sdk-client-mock';
 import 'aws-sdk-client-mock-jest';
-import { processAutoStartPrevent } from '../src/funcs/auto-start-prevent.lambda';
+import { handler } from '../src/funcs/auto-start-prevent.lambda';
 
-const postMessageMock = jest.fn().mockResolvedValue({ ok: true });
+const postMessageMock = jest.fn().mockResolvedValue({ ok: true, ts: '1700000000.000100' });
 const rdsMock = mockClient(RDSClient);
 const getSecretValueMock = secretFetcher.getSecretValue as jest.MockedFunction<
   typeof secretFetcher.getSecretValue
 >;
-
-type WaitStrategyResult = { shouldContinue: true; delay: unknown } | { shouldContinue: false };
-
-/**
- * Minimal DurableContext that runs steps immediately and evaluates waitForCondition locally.
- */
-const createFakeDurableContext = (): DurableContext => {
-  const context = {
-    step: jest.fn(async (_name: string, fn: () => Promise<unknown>) => fn()),
-    wait: jest.fn(async () => undefined),
-    waitForCondition: jest.fn(
-      async <T>(
-        checkFn: (state: T, ctx: DurableContext) => Promise<T>,
-        config: {
-          initialState: T;
-          waitStrategy: (state: T) => WaitStrategyResult;
-        },
-      ): Promise<T> => {
-        let state = config.initialState;
-        for (let i = 0; i < 20; i += 1) {
-          state = await checkFn(state, context as DurableContext);
-          const strategy = config.waitStrategy(state);
-          if (!strategy.shouldContinue) {
-            return state;
-          }
-        }
-        throw new Error('waitForCondition exceeded max iterations in test double');
-      },
-    ),
-  };
-  return context as unknown as DurableContext;
-};
 
 const instanceInput = {
   event: {
@@ -95,10 +64,71 @@ const clusterInput = {
   },
 };
 
-describe('processAutoStartPrevent', () => {
+/** Describe responses for an available, tag-matched instance that reaches `stopped` after StopDBInstance. */
+const mockInstanceStopFlow = (): void => {
+  rdsMock
+    .on(DescribeDBInstancesCommand)
+    .resolvesOnce({
+      DBInstances: [
+        {
+          DBInstanceIdentifier: 'demo-db',
+          DBInstanceStatus: 'available',
+          TagList: [{ Key: 'AutoStartPrevent', Value: 'YES' }],
+        },
+      ],
+    })
+    .resolvesOnce({
+      DBInstances: [
+        {
+          DBInstanceIdentifier: 'demo-db',
+          DBInstanceStatus: 'stopping',
+        },
+      ],
+    })
+    .resolves({
+      DBInstances: [
+        {
+          DBInstanceIdentifier: 'demo-db',
+          DBInstanceStatus: 'stopped',
+        },
+      ],
+    });
+  rdsMock.on(StopDBInstanceCommand).resolves({});
+};
+
+const runHandler = async (payload: unknown) => {
+  const runner = new LocalDurableTestRunner({ handlerFunction: handler });
+  const execution = await runner.run({ payload });
+  return { runner, execution };
+};
+
+const expectNoStopSent = (): void => {
+  expect(rdsMock).not.toHaveReceivedCommand(StopDBInstanceCommand);
+  expect(rdsMock).not.toHaveReceivedCommand(StopDBClusterCommand);
+};
+
+const expectNoRdsCommandSent = (): void => {
+  expect(rdsMock).not.toHaveReceivedCommand(DescribeDBInstancesCommand);
+  expect(rdsMock).not.toHaveReceivedCommand(DescribeDBClustersCommand);
+  expectNoStopSent();
+};
+
+describe('auto-start-prevent handler', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeAll(async () => {
+    await LocalDurableTestRunner.setupTestEnvironment({ skipTime: true });
+  });
+
+  afterAll(async () => {
+    await LocalDurableTestRunner.teardownTestEnvironment();
+  });
+
   beforeEach(() => {
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     rdsMock.reset();
     postMessageMock.mockClear();
+    (WebClient as unknown as jest.Mock).mockClear();
     getSecretValueMock.mockReset();
     process.env.SLACK_SECRET_NAME = 'example/slack/secret';
     getSecretValueMock.mockResolvedValue({
@@ -108,6 +138,7 @@ describe('processAutoStartPrevent', () => {
   });
 
   afterEach(() => {
+    consoleErrorSpy.mockRestore();
     delete process.env.SLACK_SECRET_NAME;
   });
 
@@ -122,14 +153,15 @@ describe('processAutoStartPrevent', () => {
       ],
     });
 
-    const result = await processAutoStartPrevent(instanceInput, createFakeDurableContext());
+    const { execution } = await runHandler(instanceInput);
 
-    expect(result).toEqual({
+    expect(execution.getStatus()).toBe('SUCCEEDED');
+    expect(execution.getResult()).toEqual({
       action: 'no-op',
       reason: 'tag not matched or not found',
       status: 'available',
     });
-    expect(rdsMock).not.toHaveReceivedCommand(StopDBInstanceCommand);
+    expectNoStopSent();
     expect(postMessageMock).not.toHaveBeenCalled();
   });
 
@@ -144,58 +176,38 @@ describe('processAutoStartPrevent', () => {
       ],
     });
 
-    const result = await processAutoStartPrevent(instanceInput, createFakeDurableContext());
+    const { execution } = await runHandler(instanceInput);
 
-    expect(result).toEqual({
+    expect(execution.getStatus()).toBe('SUCCEEDED');
+    expect(execution.getResult()).toEqual({
       action: 'no-op',
       reason: 'already stopped',
       status: 'stopped',
     });
-    expect(rdsMock).not.toHaveReceivedCommand(StopDBInstanceCommand);
+    expectNoStopSent();
     expect(postMessageMock).not.toHaveBeenCalled();
   });
 
   it('stops an available instance, waits until stopped, and posts Slack', async () => {
-    rdsMock
-      .on(DescribeDBInstancesCommand)
-      .resolvesOnce({
-        DBInstances: [
-          {
-            DBInstanceIdentifier: 'demo-db',
-            DBInstanceStatus: 'available',
-            TagList: [{ Key: 'AutoStartPrevent', Value: 'YES' }],
-          },
-        ],
-      })
-      .resolvesOnce({
-        DBInstances: [
-          {
-            DBInstanceIdentifier: 'demo-db',
-            DBInstanceStatus: 'stopping',
-          },
-        ],
-      })
-      .resolvesOnce({
-        DBInstances: [
-          {
-            DBInstanceIdentifier: 'demo-db',
-            DBInstanceStatus: 'stopped',
-          },
-        ],
-      });
-    rdsMock.on(StopDBInstanceCommand).resolves({});
+    mockInstanceStopFlow();
 
-    const result = await processAutoStartPrevent(instanceInput, createFakeDurableContext());
+    const { execution } = await runHandler(instanceInput);
 
-    expect(result).toEqual({
+    expect(execution.getStatus()).toBe('SUCCEEDED');
+    expect(execution.getResult()).toEqual({
       action: 'stopped',
       finalStatus: 'stopped',
       account: '123456789012',
       region: 'ap-northeast-1',
       identifier: 'demo-db',
     });
+    expect(rdsMock).toHaveReceivedCommandTimes(StopDBInstanceCommand, 1);
     expect(rdsMock).toHaveReceivedCommandWith(StopDBInstanceCommand, {
       DBInstanceIdentifier: 'demo-db',
+    });
+    expect(WebClient).toHaveBeenCalledWith('xoxb-test-token', {
+      timeout: 30_000,
+      retryConfig: { retries: 2 },
     });
     expect(postMessageMock).toHaveBeenCalledTimes(1);
     expect(postMessageMock).toHaveBeenCalledWith(
@@ -208,6 +220,7 @@ describe('processAutoStartPrevent', () => {
         ]),
       }),
     );
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
   it('stops an available cluster and posts Slack', async () => {
@@ -222,7 +235,7 @@ describe('processAutoStartPrevent', () => {
           },
         ],
       })
-      .resolvesOnce({
+      .resolves({
         DBClusters: [
           {
             DBClusterIdentifier: 'demo-cluster',
@@ -232,22 +245,77 @@ describe('processAutoStartPrevent', () => {
       });
     rdsMock.on(StopDBClusterCommand).resolves({});
 
-    const result = await processAutoStartPrevent(clusterInput, createFakeDurableContext());
+    const { runner, execution } = await runHandler(clusterInput);
 
-    expect(result).toEqual({
+    expect(execution.getStatus()).toBe('SUCCEEDED');
+    expect(execution.getResult()).toEqual({
       action: 'stopped',
       finalStatus: 'stopped',
       account: '111122223333',
       region: 'us-east-1',
       identifier: 'demo-cluster',
     });
+    expect(runner.getOperation('stop-db-cluster').getStepDetails()?.error).toBeUndefined();
+    expect(rdsMock).toHaveReceivedCommandTimes(StopDBClusterCommand, 1);
     expect(rdsMock).toHaveReceivedCommandWith(StopDBClusterCommand, {
       DBClusterIdentifier: 'demo-cluster',
     });
     expect(postMessageMock).toHaveBeenCalledTimes(1);
   });
 
-  it('throws for unsupported event combinations', async () => {
+  it('keeps the Slack secret and Slack response out of the durable execution history', async () => {
+    mockInstanceStopFlow();
+
+    const { runner, execution } = await runHandler(instanceInput);
+
+    expect(execution.getStatus()).toBe('SUCCEEDED');
+    const operationNames = execution.getOperations().map((operation) => operation.getName());
+    expect(operationNames).not.toContain('fetch-slack-secret');
+    expect(runner.getOperation('post-slack-messages').getStepDetails()?.result).toBeUndefined();
+
+    const history = JSON.stringify(execution.getHistoryEvents());
+    expect(history).toContain('demo-db');
+    expect(history).not.toContain('xoxb-test-token');
+    expect(history).not.toContain('C-TEST');
+    expect(history).not.toContain('1700000000.000100');
+    expect(getSecretValueMock).toHaveBeenCalledWith('example/slack/secret');
+  });
+
+  it('runs the named durable operations in order', async () => {
+    mockInstanceStopFlow();
+
+    const { runner, execution } = await runHandler(instanceInput);
+
+    expect(execution.getStatus()).toBe('SUCCEEDED');
+    expect(execution.getOperations().map((operation) => operation.getName())).toEqual([
+      'initial-delay',
+      'wait-until-stable',
+      'stop-db-instance',
+      'wait-until-stopped',
+      'post-slack-messages',
+    ]);
+    expect(runner.getOperation('initial-delay').getWaitDetails()?.waitSeconds).toBe(60);
+  });
+
+  it.each([
+    ['instance', instanceInput, () => rdsMock.on(DescribeDBInstancesCommand).resolves({ DBInstances: [] })],
+    ['cluster', clusterInput, () => rdsMock.on(DescribeDBClustersCommand).resolves({ DBClusters: [] })],
+  ])('returns tag mismatch no-op with unknown status when the %s describe is empty', async (_kind, input, mockEmptyDescribe) => {
+    mockEmptyDescribe();
+
+    const { execution } = await runHandler(input);
+
+    expect(execution.getStatus()).toBe('SUCCEEDED');
+    expect(execution.getResult()).toEqual({
+      action: 'no-op',
+      reason: 'tag not matched or not found',
+      status: 'unknown',
+    });
+    expectNoStopSent();
+    expect(postMessageMock).not.toHaveBeenCalled();
+  });
+
+  it('fails for unsupported event combinations', async () => {
     const unsupported = {
       ...instanceInput,
       event: {
@@ -259,12 +327,14 @@ describe('processAutoStartPrevent', () => {
       },
     };
 
-    await expect(
-      processAutoStartPrevent(unsupported, createFakeDurableContext()),
-    ).rejects.toThrow(/Unsupported event/);
+    const { execution } = await runHandler(unsupported);
+
+    expect(execution.getStatus()).toBe('FAILED');
+    expect(execution.getError().errorMessage).toMatch(/Unsupported event/);
+    expectNoRdsCommandSent();
   });
 
-  it('throws when matched tags but status is neither available nor stopped', async () => {
+  it('fails when matched tags but status is neither available nor stopped', async () => {
     rdsMock.on(DescribeDBInstancesCommand).resolves({
       DBInstances: [
         {
@@ -275,52 +345,68 @@ describe('processAutoStartPrevent', () => {
       ],
     });
 
-    await expect(
-      processAutoStartPrevent(instanceInput, createFakeDurableContext()),
-    ).rejects.toThrow('DB status is not stopped after processing: storage-full');
+    const { execution } = await runHandler(instanceInput);
+
+    expect(execution.getStatus()).toBe('FAILED');
+    expect(execution.getError().errorMessage).toBe(
+      'Cannot stop DB demo-db: status is storage-full, expected available or stopped.',
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('AutoStartPreventFailed', {
+      identifier: 'demo-db',
+      errorMessage: 'Cannot stop DB demo-db: status is storage-full, expected available or stopped.',
+    });
+    expectNoStopSent();
     expect(postMessageMock).not.toHaveBeenCalled();
   });
 
-  it('throws when Slack secret shape is invalid', async () => {
+  it('fails when Slack secret shape is invalid', async () => {
     getSecretValueMock.mockResolvedValue('not-json' as unknown as never);
 
-    await expect(
-      processAutoStartPrevent(instanceInput, createFakeDurableContext()),
-    ).rejects.toThrow('Slack secret must be JSON with non-empty token and channel.');
+    const { execution } = await runHandler(instanceInput);
+
+    expect(execution.getStatus()).toBe('FAILED');
+    expect(execution.getError().errorMessage).toBe('Slack secret must be JSON with non-empty token and channel.');
+    expect(consoleErrorSpy).toHaveBeenCalledWith('AutoStartPreventFailed', {
+      identifier: 'demo-db',
+      errorMessage: 'Slack secret must be JSON with non-empty token and channel.',
+    });
+    expect(JSON.stringify(consoleErrorSpy.mock.calls)).not.toContain('not-json');
+    expectNoRdsCommandSent();
   });
 
-  it('throws when input is not { event, params }', async () => {
-    await expect(
-      processAutoStartPrevent(instanceInput.event, createFakeDurableContext()),
-    ).rejects.toThrow('Invalid input: expected { event, params }.');
+  it('logs the failure term when a non-Error value is thrown', async () => {
+    getSecretValueMock.mockRejectedValue('secret fetch failed');
+
+    const { execution } = await runHandler(instanceInput);
+
+    expect(execution.getStatus()).toBe('FAILED');
+    expect(consoleErrorSpy).toHaveBeenCalledWith('AutoStartPreventFailed', {
+      identifier: 'demo-db',
+      errorMessage: 'secret fetch failed',
+    });
+  });
+
+  it('fails when input is not { event, params }', async () => {
+    const { execution } = await runHandler(instanceInput.event);
+
+    expect(execution.getStatus()).toBe('FAILED');
+    expect(execution.getError().errorMessage).toBe('Invalid input: expected { event, params }.');
+    expect(consoleErrorSpy).toHaveBeenCalledWith('AutoStartPreventFailed', {
+      identifier: undefined,
+      errorMessage: 'Invalid input: expected { event, params }.',
+    });
+    expectNoRdsCommandSent();
   });
 
   it('stops an available instance without Slack when SLACK_SECRET_NAME is missing', async () => {
     delete process.env.SLACK_SECRET_NAME;
-    rdsMock
-      .on(DescribeDBInstancesCommand)
-      .resolvesOnce({
-        DBInstances: [
-          {
-            DBInstanceIdentifier: 'demo-db',
-            DBInstanceStatus: 'available',
-            TagList: [{ Key: 'AutoStartPrevent', Value: 'YES' }],
-          },
-        ],
-      })
-      .resolvesOnce({
-        DBInstances: [
-          {
-            DBInstanceIdentifier: 'demo-db',
-            DBInstanceStatus: 'stopped',
-          },
-        ],
-      });
-    rdsMock.on(StopDBInstanceCommand).resolves({});
+    mockInstanceStopFlow();
 
-    const result = await processAutoStartPrevent(instanceInput, createFakeDurableContext());
+    const { execution } = await runHandler(instanceInput);
 
-    expect(result).toEqual({
+    expect(execution.getStatus()).toBe('SUCCEEDED');
+    expect(execution.getResult()).toEqual({
       action: 'stopped',
       finalStatus: 'stopped',
       account: '123456789012',
@@ -330,6 +416,7 @@ describe('processAutoStartPrevent', () => {
     expect(rdsMock).toHaveReceivedCommandWith(StopDBInstanceCommand, {
       DBInstanceIdentifier: 'demo-db',
     });
+    expect(execution.getOperations().map((operation) => operation.getName())).not.toContain('post-slack-messages');
     expect(getSecretValueMock).not.toHaveBeenCalled();
     expect(postMessageMock).not.toHaveBeenCalled();
   });

@@ -19,7 +19,7 @@ export class RDSDatabaseAutoStartPreventStack extends Stack {
    *
    * @param scope - Parent construct.
    * @param id - Stack id.
-   * @param props - Stack props (target resource, enable rule, secrets).
+   * @param props - Stack props (target resource, enable rule, secrets, failure detection).
    */
   constructor(scope: Construct, id: string, props: RDSDatabaseAutoStartPreventStackProps) {
     super(scope, id, props);
@@ -28,6 +28,7 @@ export class RDSDatabaseAutoStartPreventStack extends Stack {
       targetResource: props.targetResource,
       enableRule: props.enableRule,
       secrets: props.secrets,
+      failureDetection: props.failureDetection,
     });
   }
 }

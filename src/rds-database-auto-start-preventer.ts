@@ -1,12 +1,40 @@
 import { ArnFormat, Duration, RemovalPolicy, Stack, Token } from 'aws-cdk-lib';
-import * as events from 'aws-cdk-lib/aws-events';
-import * as targets from 'aws-cdk-lib/aws-events-targets';
-import * as iam from 'aws-cdk-lib/aws-iam';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as logs from 'aws-cdk-lib/aws-logs';
+import { EventField, Rule, RuleTargetInput } from 'aws-cdk-lib/aws-events';
+import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
+import { Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import {
+  ApplicationLogLevel,
+  Architecture,
+  LoggingFormat,
+  ParamsAndSecretsLayerVersion,
+  ParamsAndSecretsLogLevel,
+  ParamsAndSecretsVersions,
+  SystemLogLevel,
+} from 'aws-cdk-lib/aws-lambda';
+import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
+import { createLambdaFailureDetector, LambdaFailureDetection, LogFailureFilter } from 'lambda-failure-detector';
 import { AutoStartPreventFunction } from './funcs/auto-start-prevent-function';
+import {
+  AUTO_START_PREVENT_FAILED_LOG_TERM,
+  DB_CLUSTER_AUTO_START_EVENT,
+  DB_INSTANCE_AUTO_START_EVENT,
+  RDS_EVENT_SOURCE,
+} from './settings/consts';
+
+/** EventBridge retries when delivering an auto-start event to the Lambda alias. */
+const EVENT_TARGET_RETRY_ATTEMPTS = 2;
+
+/** Log-based failures watched when failure detection is enabled. */
+const AUTO_START_PREVENT_LOG_FILTERS: LogFailureFilter[] = [
+  {
+    id: 'AutoStartPreventFailed',
+    filterPattern: `"${AUTO_START_PREVENT_FAILED_LOG_TERM}"`,
+    metricNamespace: 'RDSDatabaseAutoStartPreventer',
+    metricName: 'AutoStartPreventFailed',
+  },
+];
 
 /**
  * Tag-based criteria evaluated in the Lambda handler (not on the EventBridge rule).
@@ -33,6 +61,15 @@ export interface Secrets {
 }
 
 /**
+ * Opt-in CloudWatch failure detection for the auto-start prevent Lambda.
+ *
+ * When `enabled` is true, creates alarms on the Lambda `Errors` and `Throttles` metrics and on
+ * failed executions logged by the handler (custom metric `RDSDatabaseAutoStartPreventer` / `AutoStartPreventFailed`).
+ * No SNS topic is created; alarms notify `alarmTopic` only when it is set.
+ */
+export interface AutoStartPreventFailureDetectionProps extends LambdaFailureDetection {}
+
+/**
  * Props for the RDS database auto-start preventer construct.
  */
 export interface RDSDatabaseAutoStartPreventerProps {
@@ -42,6 +79,12 @@ export interface RDSDatabaseAutoStartPreventerProps {
   readonly enableRule?: boolean;
   /** Secrets used for notifications (e.g. Slack). */
   readonly secrets: Secrets;
+  /**
+   * CloudWatch failure detection for the Lambda.
+   *
+   * @default no alarms
+   */
+  readonly failureDetection?: AutoStartPreventFailureDetectionProps;
 }
 
 /**
@@ -86,11 +129,13 @@ const validateProps = (props: RDSDatabaseAutoStartPreventerProps): void => {
  * using `TagList` from `rds:DescribeDBInstances` / `rds:DescribeDBClusters`.
  * IAM grants account/region-scoped describe on `db` / `cluster` ARNs, and stop only
  * when `aws:ResourceTag` matches {@link TargetResource} (no Resource Groups Tagging API).
+ * CloudWatch failure alarms are created only when
+ * {@link RDSDatabaseAutoStartPreventerProps.failureDetection} is enabled.
  */
 export class RDSDatabaseAutoStartPreventer extends Construct {
 
   /**
-   * Creates the Durable Lambda, EventBridge rules, and IAM policies.
+   * Creates the Durable Lambda, EventBridge rules, IAM policies, and optional failure alarms.
    *
    * The Lambda receives `{ event, params }` where `params` carries `tagKey` and `tagValues`
    * from {@link RDSDatabaseAutoStartPreventerProps.targetResource}. Tag filters are passed
@@ -110,12 +155,20 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       ? undefined
       : Secret.fromSecretNameV2(this, 'SlackSecret', slackSecretName);
 
-    // Durable Functions-based Running Scheduler (previous Step Functions logic implemented in Lambda).
+    const autoStartPreventFunctionLogGroup = new LogGroup(this, 'AutoStartPreventFunctionLogGroup', {
+      retention: RetentionDays.THREE_MONTHS,
+      // Delete on failed create/rollback; retain after successful create (stack delete/replace).
+      removalPolicy: RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
+    });
+
+    // Durable Lambda that waits for the auto-started resource to settle, stops it when tags match,
+    // and posts to Slack after the stop when a Slack secret is configured.
     // Durable Execution requires Node.js 22+.
     const autoStartPreventFunction = new AutoStartPreventFunction(this, 'AutoStartPreventFunction', {
       description: 'A function to prevent the RDS Database or Cluster from starting automatically.',
-      architecture: lambda.Architecture.ARM_64,
-      timeout: Duration.minutes(15),
+      architecture: Architecture.ARM_64,
+      // Durable waits suspend the invocation, so this only covers the API calls between waits.
+      timeout: Duration.minutes(3),
       memorySize: 512,
       retryAttempts: 2,
       durableConfig: {
@@ -130,26 +183,22 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       // Required by aws-lambda-secret-fetcher (^0.6+) when Slack is configured.
       paramsAndSecrets: slackSecret === undefined
         ? undefined
-        : lambda.ParamsAndSecretsLayerVersion.fromVersion(lambda.ParamsAndSecretsVersions.V1_0_103, {
+        : ParamsAndSecretsLayerVersion.fromVersion(ParamsAndSecretsVersions.V1_0_103, {
           cacheSize: 500,
-          logLevel: lambda.ParamsAndSecretsLogLevel.INFO,
+          logLevel: ParamsAndSecretsLogLevel.INFO,
         }),
-      role: new iam.Role(this, 'AutoStartPreventFunctionRole', {
+      role: new Role(this, 'AutoStartPreventFunctionRole', {
         description: 'A role to control the RDS Database or Cluster.',
-        assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
         managedPolicies: [
-          iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
-          iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicDurableExecutionRolePolicy'),
+          ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+          ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicDurableExecutionRolePolicy'),
         ],
       }),
-      logGroup: new logs.LogGroup(this, 'AutoStartPreventFunctionLogGroup', {
-        retention: logs.RetentionDays.THREE_MONTHS,
-        // Delete on failed create/rollback; retain after successful create (stack delete/replace).
-        removalPolicy: RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
-      }),
-      loggingFormat: lambda.LoggingFormat.JSON,
-      systemLogLevelV2: lambda.SystemLogLevel.INFO,
-      applicationLogLevelV2: lambda.ApplicationLogLevel.INFO,
+      logGroup: autoStartPreventFunctionLogGroup,
+      loggingFormat: LoggingFormat.JSON,
+      systemLogLevelV2: SystemLogLevel.INFO,
+      applicationLogLevelV2: ApplicationLogLevel.INFO,
     });
     const rdsDbAndClusterArns = [
       Stack.of(this).formatArn({
@@ -166,9 +215,9 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       }),
     ];
     // Describe stays without ResourceTag so TagList can be read for non-matching resources.
-    autoStartPreventFunction.addToRolePolicy(new iam.PolicyStatement({
+    autoStartPreventFunction.addToRolePolicy(new PolicyStatement({
       sid: 'RdsDescribeForTagFilter',
-      effect: iam.Effect.ALLOW,
+      effect: Effect.ALLOW,
       actions: [
         'rds:DescribeDBInstances',
         'rds:DescribeDBClusters',
@@ -176,9 +225,9 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       resources: rdsDbAndClusterArns,
     }));
     // Stop is limited to db/cluster ARNs whose tag matches targetResource.
-    autoStartPreventFunction.addToRolePolicy(new iam.PolicyStatement({
+    autoStartPreventFunction.addToRolePolicy(new PolicyStatement({
       sid: 'RdsStopTaggedTargets',
-      effect: iam.Effect.ALLOW,
+      effect: Effect.ALLOW,
       actions: [
         'rds:StopDBInstance',
         'rds:StopDBCluster',
@@ -194,53 +243,60 @@ export class RDSDatabaseAutoStartPreventer extends Construct {
       slackSecret.grantRead(autoStartPreventFunction);
     }
 
+    createLambdaFailureDetector(this, 'FailureDetection', {
+      failureDetection: props.failureDetection,
+      lambdaFunction: autoStartPreventFunction,
+      logGroup: autoStartPreventFunctionLogGroup,
+      logFilters: AUTO_START_PREVENT_LOG_FILTERS,
+    });
+
     // See: https://docs.aws.amazon.com/lambda/latest/dg/durable-getting-started-iac.html
     const autoStartPreventFunctionAlias = autoStartPreventFunction.addAlias('live');
 
     const enableRule = props.enableRule !== false;
 
     // Pass the EventBridge event and tag filter params to the Lambda target input.
-    const lambdaInput = events.RuleTargetInput.fromObject({
-      event: events.EventField.fromPath('$'),
+    const lambdaInput = RuleTargetInput.fromObject({
+      event: EventField.fromPath('$'),
       params: {
         tagKey: props.targetResource.tagKey,
         tagValues: props.targetResource.tagValues,
       },
     });
 
-    // 👇 EventBridge by RDS DB Instance auto start event
-    new events.Rule(this, 'DBInstanceEvent', {
-      description: 'rds db instance auto start event catch rule.',
+    // EventBridge rule for DB instance auto-start events (RDS-EVENT-0154).
+    new Rule(this, 'DBInstanceEvent', {
+      description: 'Catches RDS DB instance auto-start events (RDS-EVENT-0154).',
       enabled: enableRule,
       eventPattern: {
-        source: ['aws.rds'],
-        detailType: ['RDS DB Instance Event'],
+        source: [RDS_EVENT_SOURCE],
+        detailType: [DB_INSTANCE_AUTO_START_EVENT.detailType],
         detail: {
-          EventID: ['RDS-EVENT-0154'],
+          EventID: [DB_INSTANCE_AUTO_START_EVENT.eventId],
         },
       },
       targets: [
-        new targets.LambdaFunction(autoStartPreventFunctionAlias, {
-          retryAttempts: 2,
+        new LambdaFunction(autoStartPreventFunctionAlias, {
+          retryAttempts: EVENT_TARGET_RETRY_ATTEMPTS,
           event: lambdaInput,
         }),
       ],
     });
 
-    // 👇 EventBridge by RDS DB Cluster auto start event
-    new events.Rule(this, 'DBClusterEvent', {
-      description: 'db cluster auto start event catch rule',
+    // EventBridge rule for DB cluster auto-start events (RDS-EVENT-0153).
+    new Rule(this, 'DBClusterEvent', {
+      description: 'Catches RDS DB cluster auto-start events (RDS-EVENT-0153).',
       enabled: enableRule,
       eventPattern: {
-        source: ['aws.rds'],
-        detailType: ['RDS DB Cluster Event'],
+        source: [RDS_EVENT_SOURCE],
+        detailType: [DB_CLUSTER_AUTO_START_EVENT.detailType],
         detail: {
-          EventID: ['RDS-EVENT-0153'],
+          EventID: [DB_CLUSTER_AUTO_START_EVENT.eventId],
         },
       },
       targets: [
-        new targets.LambdaFunction(autoStartPreventFunctionAlias, {
-          retryAttempts: 2,
+        new LambdaFunction(autoStartPreventFunctionAlias, {
+          retryAttempts: EVENT_TARGET_RETRY_ATTEMPTS,
           event: lambdaInput,
         }),
       ],

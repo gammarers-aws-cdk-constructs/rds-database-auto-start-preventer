@@ -90,7 +90,7 @@ exports[`Stack Default should match snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "5438dd2be664fe6aa7bba0dabecbbe09f93a5c9e68745f1934909ef6dfacca33.zip",
+          "S3Key": "fda1626efb19f04cb977b0736b892d30ef4695361cac20fbb1db88820a89c557.zip",
         },
         "Description": "A function to prevent the RDS Database or Cluster from starting automatically.",
         "DurableConfig": {
@@ -140,7 +140,7 @@ exports[`Stack Default should match snapshot 1`] = `
           ],
         },
         "Runtime": "nodejs24.x",
-        "Timeout": 900,
+        "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -151,7 +151,7 @@ exports[`Stack Default should match snapshot 1`] = `
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05fb18189899d5103d07347299ecb5395b",
+            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB058614549250267d2b483cd5284c263409",
             "Version",
           ],
         },
@@ -159,7 +159,7 @@ exports[`Stack Default should match snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05fb18189899d5103d07347299ecb5395b": {
+    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB058614549250267d2b483cd5284c263409": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -384,7 +384,7 @@ exports[`Stack Default should match snapshot 1`] = `
     },
     "RDSDatabaseAutoStartPreventerDBClusterEvent1997DEF3": {
       "Properties": {
-        "Description": "db cluster auto start event catch rule",
+        "Description": "Catches RDS DB cluster auto-start events (RDS-EVENT-0153).",
         "EventPattern": {
           "detail": {
             "EventID": [
@@ -437,7 +437,7 @@ exports[`Stack Default should match snapshot 1`] = `
     },
     "RDSDatabaseAutoStartPreventerDBInstanceEvent92CCC656": {
       "Properties": {
-        "Description": "rds db instance auto start event catch rule.",
+        "Description": "Catches RDS DB instance auto-start events (RDS-EVENT-0154).",
         "EventPattern": {
           "detail": {
             "EventID": [
@@ -609,7 +609,7 @@ exports[`Stack Disable should match snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "5438dd2be664fe6aa7bba0dabecbbe09f93a5c9e68745f1934909ef6dfacca33.zip",
+          "S3Key": "fda1626efb19f04cb977b0736b892d30ef4695361cac20fbb1db88820a89c557.zip",
         },
         "Description": "A function to prevent the RDS Database or Cluster from starting automatically.",
         "DurableConfig": {
@@ -659,7 +659,7 @@ exports[`Stack Disable should match snapshot 1`] = `
           ],
         },
         "Runtime": "nodejs24.x",
-        "Timeout": 900,
+        "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -670,7 +670,7 @@ exports[`Stack Disable should match snapshot 1`] = `
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05fb18189899d5103d07347299ecb5395b",
+            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB058614549250267d2b483cd5284c263409",
             "Version",
           ],
         },
@@ -678,7 +678,7 @@ exports[`Stack Disable should match snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05fb18189899d5103d07347299ecb5395b": {
+    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB058614549250267d2b483cd5284c263409": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -903,7 +903,7 @@ exports[`Stack Disable should match snapshot 1`] = `
     },
     "RDSDatabaseAutoStartPreventerDBClusterEvent1997DEF3": {
       "Properties": {
-        "Description": "db cluster auto start event catch rule",
+        "Description": "Catches RDS DB cluster auto-start events (RDS-EVENT-0153).",
         "EventPattern": {
           "detail": {
             "EventID": [
@@ -956,7 +956,7 @@ exports[`Stack Disable should match snapshot 1`] = `
     },
     "RDSDatabaseAutoStartPreventerDBInstanceEvent92CCC656": {
       "Properties": {
-        "Description": "rds db instance auto start event catch rule.",
+        "Description": "Catches RDS DB instance auto-start events (RDS-EVENT-0154).",
         "EventPattern": {
           "detail": {
             "EventID": [

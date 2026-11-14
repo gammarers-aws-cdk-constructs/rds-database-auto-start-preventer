@@ -428,6 +428,7 @@
             "npm",
             "update",
             "@aws-sdk/client-rds",
+            "@aws/durable-execution-sdk-js-testing",
             "@aws/durable-execution-sdk-js",
             "@gammarers/projen-projects",
             "@slack/web-api",
@@ -458,7 +459,8 @@
             "ts-node",
             "typescript",
             "aws-cdk-lib",
-            "constructs"
+            "constructs",
+            "lambda-failure-detector"
           ]
         },
         {

@@ -11,6 +11,7 @@ import {
   normalizeInput,
   parseRdsSourceArn,
   RdsAutoStartDetail,
+  resolveResourceKind,
   tagMismatchNoOp,
   TRANSITIONAL_STATUSES,
   waitStrategyUntilStable,
@@ -125,6 +126,33 @@ describe('auto-start-prevent.predicates', () => {
     });
   });
 
+  describe('resolveResourceKind', () => {
+    const detail = (EventID: RdsAutoStartDetail['EventID'], SourceType: RdsAutoStartDetail['SourceType']): RdsAutoStartDetail => ({
+      EventID,
+      SourceType,
+      SourceArn: 'arn:aws:rds:us-east-1:111122223333:db:r1',
+      SourceIdentifier: 'r1',
+    });
+
+    it.each([
+      ['RDS DB Instance Event', detail('RDS-EVENT-0154', 'DB_INSTANCE'), 'instance'],
+      ['RDS DB Cluster Event', detail('RDS-EVENT-0153', 'CLUSTER'), 'cluster'],
+    ] as const)('resolves %s to %s', (detailType, eventDetail, expected) => {
+      expect(resolveResourceKind(detailType, eventDetail)).toBe(expected);
+    });
+
+    it.each([
+      ['RDS DB Instance Event', detail('RDS-EVENT-0153', 'DB_INSTANCE')],
+      ['RDS DB Instance Event', detail('RDS-EVENT-0154', 'CLUSTER')],
+      ['RDS DB Cluster Event', detail('RDS-EVENT-0154', 'CLUSTER')],
+      ['RDS DB Cluster Event', detail('RDS-EVENT-0153', 'DB_INSTANCE')],
+    ] as const)('throws for unsupported %s %j', (detailType, eventDetail) => {
+      expect(() => resolveResourceKind(detailType, eventDetail)).toThrow(
+        `Unsupported event: detail-type=${detailType}, SourceType=${eventDetail.SourceType}, EventID=${eventDetail.EventID}`,
+      );
+    });
+  });
+
   describe('isTransitionalStatus / waitStrategyUntilStable', () => {
     it.each([...TRANSITIONAL_STATUSES])('treats %s as transitional', (status) => {
       expect(isTransitionalStatus(status)).toBe(true);
@@ -168,11 +196,11 @@ describe('auto-start-prevent.predicates', () => {
 
   describe('decideAfterTagMatch', () => {
     it('requests stop when available', () => {
-      expect(decideAfterTagMatch('available')).toEqual({ kind: 'stop' });
+      expect(decideAfterTagMatch({ status: 'available', identifier: 'db' })).toEqual({ kind: 'stop' });
     });
 
     it('returns already-stopped no-op', () => {
-      expect(decideAfterTagMatch('stopped')).toEqual({
+      expect(decideAfterTagMatch({ status: 'stopped', identifier: 'db' })).toEqual({
         kind: 'no-op',
         result: {
           action: 'no-op',
@@ -185,9 +213,9 @@ describe('auto-start-prevent.predicates', () => {
     it.each(['available-read-replica', 'storage-full', 'unknown'])(
       'errors for unexpected %s',
       (status) => {
-        expect(decideAfterTagMatch(status)).toEqual({
+        expect(decideAfterTagMatch({ status, identifier: 'demo-db' })).toEqual({
           kind: 'error',
-          message: `DB status is not stopped after processing: ${status}`,
+          message: `Cannot stop DB demo-db: status is ${status}, expected available or stopped.`,
         });
       },
     );

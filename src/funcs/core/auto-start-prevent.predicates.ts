@@ -3,14 +3,20 @@
  * No AWS SDK, Durable context, env, or clock dependencies.
  */
 
+import {
+  DB_CLUSTER_AUTO_START_EVENT,
+  DB_INSTANCE_AUTO_START_EVENT,
+  RDS_EVENT_SOURCE,
+} from '../../settings/consts';
+
 /**
  * Detail payload of an RDS auto-start event from EventBridge.
  */
 export interface RdsAutoStartDetail {
   /** Event ID: RDS-EVENT-0154 (DB instance) or RDS-EVENT-0153 (DB cluster). */
-  EventID: 'RDS-EVENT-0154' | 'RDS-EVENT-0153';
+  EventID: typeof DB_INSTANCE_AUTO_START_EVENT.eventId | typeof DB_CLUSTER_AUTO_START_EVENT.eventId;
   /** Resource type that emitted the event. */
-  SourceType: 'DB_INSTANCE' | 'CLUSTER';
+  SourceType: typeof DB_INSTANCE_AUTO_START_EVENT.sourceType | typeof DB_CLUSTER_AUTO_START_EVENT.sourceType;
   /** ARN of the DB instance or cluster. */
   SourceArn: string;
   /** DB instance or cluster identifier from the event. */
@@ -21,8 +27,8 @@ export interface RdsAutoStartDetail {
  * RDS auto-start event as received from EventBridge.
  */
 export interface RdsAutoStartEvent {
-  'detail-type': 'RDS DB Instance Event' | 'RDS DB Cluster Event';
-  'source': 'aws.rds';
+  'detail-type': typeof DB_INSTANCE_AUTO_START_EVENT.detailType | typeof DB_CLUSTER_AUTO_START_EVENT.detailType;
+  'source': typeof RDS_EVENT_SOURCE;
   'detail': RdsAutoStartDetail;
 }
 
@@ -108,6 +114,13 @@ export interface StopWait {
 /** Result of a durable waitStrategy. */
 export type WaitStrategyResult = ContinueWait | StopWait;
 
+/** RDS statuses the handler branches on, plus the fallback when a describe returns no resource. */
+export const DB_STATUS = {
+  AVAILABLE: 'available',
+  STOPPED: 'stopped',
+  UNKNOWN: 'unknown',
+} as const;
+
 /** Minutes between describe calls while a status is transitional or stopping. */
 export const WAIT_INTERVAL_MINUTES = 5;
 
@@ -135,8 +148,8 @@ export const isTransitionalStatus = (status: string): boolean =>
 /**
  * Type guard for Slack credentials returned by `secretFetcher.getSecretValue`.
  *
- * aws-lambda-secret-fetcher ^0.7 parses SecretString with quiet-json-parser and
- * falls back to the raw string on invalid JSON, so callers must validate shape.
+ * aws-lambda-secret-fetcher ^0.10 parses a string SecretString as JSON (already parsed values are
+ * returned as-is) and falls back to the raw string on invalid JSON, so callers must validate shape.
  *
  * @param value - Value returned from the secret fetcher.
  * @returns Whether value is a SlackSecret with non-empty token and channel.
@@ -213,9 +226,9 @@ export const isDbInstanceAutoStart = (
   detailType: RdsAutoStartEvent['detail-type'],
   detail: RdsAutoStartDetail,
 ): boolean =>
-  detailType === 'RDS DB Instance Event' &&
-  detail.SourceType === 'DB_INSTANCE' &&
-  detail.EventID === 'RDS-EVENT-0154';
+  detailType === DB_INSTANCE_AUTO_START_EVENT.detailType &&
+  detail.SourceType === DB_INSTANCE_AUTO_START_EVENT.sourceType &&
+  detail.EventID === DB_INSTANCE_AUTO_START_EVENT.eventId;
 
 /**
  * Whether the EventBridge detail identifies a supported DB cluster auto-start event.
@@ -228,9 +241,35 @@ export const isDbClusterAutoStart = (
   detailType: RdsAutoStartEvent['detail-type'],
   detail: RdsAutoStartDetail,
 ): boolean =>
-  detailType === 'RDS DB Cluster Event' &&
-  detail.SourceType === 'CLUSTER' &&
-  detail.EventID === 'RDS-EVENT-0153';
+  detailType === DB_CLUSTER_AUTO_START_EVENT.detailType &&
+  detail.SourceType === DB_CLUSTER_AUTO_START_EVENT.sourceType &&
+  detail.EventID === DB_CLUSTER_AUTO_START_EVENT.eventId;
+
+/** RDS resource type targeted by a supported auto-start event. */
+export type ResourceKind = 'instance' | 'cluster';
+
+/**
+ * Resolves which RDS resource type a supported auto-start event targets.
+ *
+ * @param detailType - EventBridge detail-type.
+ * @param detail - RDS event detail.
+ * @returns `instance` for RDS-EVENT-0154 on a DB instance; `cluster` for RDS-EVENT-0153 on a cluster.
+ * @throws When the detail-type, SourceType, and EventID do not form a supported auto-start event.
+ */
+export const resolveResourceKind = (
+  detailType: RdsAutoStartEvent['detail-type'],
+  detail: RdsAutoStartDetail,
+): ResourceKind => {
+  if (isDbInstanceAutoStart(detailType, detail)) {
+    return 'instance';
+  }
+  if (isDbClusterAutoStart(detailType, detail)) {
+    return 'cluster';
+  }
+  throw new Error(
+    `Unsupported event: detail-type=${detailType}, SourceType=${detail.SourceType}, EventID=${detail.EventID}`,
+  );
+};
 
 /**
  * Wait strategy while describing until the resource leaves transitional statuses.
@@ -253,7 +292,7 @@ export const waitStrategyUntilStable = (state: WaitState): WaitStrategyResult =>
  * @throws When the status is neither stopped nor transitional.
  */
 export const waitStrategyUntilStopped = (state: WaitState): WaitStrategyResult => {
-  if (state.status === 'stopped') {
+  if (state.status === DB_STATUS.STOPPED) {
     return { shouldContinue: false };
   }
   if (isTransitionalStatus(state.status)) {
@@ -273,14 +312,16 @@ export type AfterTagMatchDecision =
 /**
  * Decides the next action when tags matched and StopDB* has not been called yet.
  *
- * @param status - Status from the first describe after leaving transitional states.
- * @returns Stop when `available`; no-op when already `stopped`; otherwise error.
+ * @param state - Status and identifier from the first describe after leaving transitional states.
+ * @returns Stop when `available`; no-op when already `stopped`; otherwise an error naming the
+ * identifier and status, because StopDB* cannot be called from any other status.
  */
-export const decideAfterTagMatch = (status: string): AfterTagMatchDecision => {
-  if (status === 'available') {
+export const decideAfterTagMatch = (state: WaitState): AfterTagMatchDecision => {
+  const { status, identifier } = state;
+  if (status === DB_STATUS.AVAILABLE) {
     return { kind: 'stop' };
   }
-  if (status === 'stopped') {
+  if (status === DB_STATUS.STOPPED) {
     return {
       kind: 'no-op',
       result: {
@@ -292,7 +333,7 @@ export const decideAfterTagMatch = (status: string): AfterTagMatchDecision => {
   }
   return {
     kind: 'error',
-    message: `DB status is not stopped after processing: ${status}`,
+    message: `Cannot stop DB ${identifier}: status is ${status}, expected ${DB_STATUS.AVAILABLE} or ${DB_STATUS.STOPPED}.`,
   };
 };
 
