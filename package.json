@@ -68,7 +68,7 @@
     "jsii-pacmak": "^1.142.0",
     "jsii-rosetta": "6.0.x",
     "lambda-failure-detector": "0.2.3",
-    "projen": "^0.104.27",
+    "projen": "^0.105.1",
     "strict-env-resolver": "^0.9.0",
     "ts-jest": "^29.4.15",
     "ts-node": "^10.9.2",
