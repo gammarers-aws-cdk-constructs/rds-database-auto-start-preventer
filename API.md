@@ -4,6 +4,8 @@
 
 ### RDSDatabaseAutoStartPreventer <a name="RDSDatabaseAutoStartPreventer" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventer"></a>
 
+- *Implements:* constructs.IConstruct, constructs.IDependable
+
 Deploys EventBridge rules and a Durable Lambda to stop matching RDS resources after auto-start events (RDS-EVENT-0154 / RDS-EVENT-0153).
 
 EventBridge rules match all auto-start events; tag filtering runs in the handler
@@ -153,6 +155,8 @@ The tree node.
 
 
 ### RDSDatabaseAutoStartPreventStack <a name="RDSDatabaseAutoStartPreventStack" id="rds-database-auto-start-preventer.RDSDatabaseAutoStartPreventStack"></a>
+
+- *Implements:* constructs.IConstruct, constructs.IDependable, aws-cdk-lib.ITaggable
 
 CDK stack that deploys {@link RDSDatabaseAutoStartPreventer}.
 
