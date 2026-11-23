@@ -90,7 +90,7 @@ exports[`Stack Default should match snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "fda1626efb19f04cb977b0736b892d30ef4695361cac20fbb1db88820a89c557.zip",
+          "S3Key": "c1629450af5645381d0b623379b7debbead4b19b59fc6895d5a9fc2b9dfab2c1.zip",
         },
         "Description": "A function to prevent the RDS Database or Cluster from starting automatically.",
         "DurableConfig": {
@@ -151,7 +151,7 @@ exports[`Stack Default should match snapshot 1`] = `
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB058614549250267d2b483cd5284c263409",
+            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05737b9e278e78bf94275a49eb778922c8",
             "Version",
           ],
         },
@@ -159,7 +159,7 @@ exports[`Stack Default should match snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB058614549250267d2b483cd5284c263409": {
+    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05737b9e278e78bf94275a49eb778922c8": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -609,7 +609,7 @@ exports[`Stack Disable should match snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "fda1626efb19f04cb977b0736b892d30ef4695361cac20fbb1db88820a89c557.zip",
+          "S3Key": "c1629450af5645381d0b623379b7debbead4b19b59fc6895d5a9fc2b9dfab2c1.zip",
         },
         "Description": "A function to prevent the RDS Database or Cluster from starting automatically.",
         "DurableConfig": {
@@ -670,7 +670,7 @@ exports[`Stack Disable should match snapshot 1`] = `
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB058614549250267d2b483cd5284c263409",
+            "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05737b9e278e78bf94275a49eb778922c8",
             "Version",
           ],
         },
@@ -678,7 +678,7 @@ exports[`Stack Disable should match snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB058614549250267d2b483cd5284c263409": {
+    "RDSDatabaseAutoStartPreventerAutoStartPreventFunctionCurrentVersion8161AB05737b9e278e78bf94275a49eb778922c8": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
